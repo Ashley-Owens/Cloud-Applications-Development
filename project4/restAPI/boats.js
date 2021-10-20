@@ -15,16 +15,10 @@ function get_boat_id(bid) {
     return datastore.get(key);
 }
 
-function post_boat(name, type, length){
+function post_boat(name, type, length) {
     var key = datastore.key(BOAT);
-	const new_boat = {"name": name, "type": type, "length": length};
-	return datastore.save({"key":key, "data":new_boat}).then(() => {return key});
-}
-
-function verify_boat_data(req){
-    if (req.body.name && req.body.type && req.body.length) {
-        return true;
-    } return false;
+    const new_boat = {"name": name, "type": type, "length": length, "loads": []};
+    return datastore.save({"key":key, "data":new_boat}).then(() => {return key});
 }
 
 function get_boats(){
@@ -67,6 +61,13 @@ function delete_slip_boat(sid) {
         return datastore.save({"key":s_key, "data":slip[0]});
     })
 }
+
+function build_boat_json(bid, boat, req) {
+    let res = boat[0];
+    res.id = bid;
+    res.self = `${req.protocol}://${req.get("host")}/boats/${bid}`;
+    return res;
+}
 /* ------------- End Model Functions ------------- */
 
 /* ------------- Begin Controller Functions ------------- */
@@ -82,9 +83,8 @@ router.get('/:boat_id', function(req, res) {
     get_boat_id(req.params.boat_id)
     .then( (boat) => {
         if (boat[0]) {
-            boat[0].id = req.params.boat_id;
-            boat[0].self = `${req.protocol}://${req.get("host")}/boats/${req.params.boat_id}`;
-            res.status(200).json(boat[0]);
+            let payload = build_boat_json(req.params.boat_id, boat, req); 
+            res.status(200).json(payload);
         } else {
             res.status(404).send({ Error: "No boat with this boat_id exists" });
         }
@@ -92,10 +92,14 @@ router.get('/:boat_id', function(req, res) {
 })
 
 router.post('/', function(req, res) {
-    if (verify_boat_data(req)) {
+    if (req.body.name && req.body.type && req.body.length) {
         post_boat(req.body.name, req.body.type, req.body.length)
         .then( key => {
-            res.status(201).json({ id: key.id, name: req.body.name, type: req.body.type, length: req.body.length, self: `${req.protocol}://${req.get("host")}/boats/${key.id}`})
+            get_boat_id(key.id)
+            .then( boat => {
+                let payload = build_boat_json(key.id, boat, req);
+                res.status(201).json(payload);
+            })
         });
     } else {
         res.status(400).send({ Error: 'The request object is missing at least one of the required attributes' });
@@ -124,16 +128,17 @@ router.delete('/:boat_id', function(req, res){
         if (boat[0] === undefined) {
             res.status(404).send({ Error: "No boat with this boat_id exists" });
         } else {
-            get_slip_with_boat(req.params.boat_id)
-            .then ( key => {
-                if (key) {
-                    delete_slip_boat(key).then( () => {
-                        delete_boat(req.params.boat_id).then(res.status(204).end());
-                    })
-                } else {
-                    delete_boat(req.params.boat_id).then(res.status(204).end());
-                }
-            })
+            delete_boat(req.params.boat_id).then(res.status(204).end());
+            // get_slip_with_boat(req.params.boat_id)
+            // .then ( key => {
+            //     if (key) {
+            //         delete_slip_boat(key).then( () => {
+            //             delete_boat(req.params.boat_id).then(res.status(204).end());
+            //         })
+            //     } else {
+            //         delete_boat(req.params.boat_id).then(res.status(204).end());
+            //     }
+            // })
         }
     })
 });
