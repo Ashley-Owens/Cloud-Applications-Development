@@ -1,0 +1,698 @@
+{
+	"info": {
+		"_postman_id": "04daecb4-6ed3-4950-b505-6131bb302f91",
+		"name": "Homework 2",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get public gists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"30 public gists obtained\", function(){",
+							"    let gistsReturned = JSON.parse(responseBody);",
+							"    pm.expect(gistsReturned.length).to.equal(30);",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists/public?per_page=30",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"public"
+					],
+					"query": [
+						{
+							"key": "per_page",
+							"value": "30"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get wolfordj gists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"wolfordj gists obtained and verified\", function(){",
+							"    let usernameResponse = JSON.parse(responseBody);",
+							"    let count = 0;",
+							"    let name;",
+							"    for (let i=0; i < usernameResponse.length; i++) {",
+							"        name = usernameResponse[i].owner.login;",
+							"        if (name === \"wolfordj\") {",
+							"            count += 1;",
+							"        }",
+							"    }",
+							"    pm.expect(name).to.equal(\"wolfordj\");",
+							"    pm.expect(count).to.be.above(0);",
+							"})",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/users/wolfordj/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"users",
+						"wolfordj",
+						"gists"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": "",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get current gists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Current number of gists received\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    let count = response.length;",
+							"    ",
+							"    // Stores most recently created gist as env variable gist_id",
+							"    for (let i=0; i < response.length; i++) {",
+							"        pm.environment.set(\"gist_id\", response[i].id);",
+							"        break;",
+							"    }",
+							"    pm.environment.set(\"gist_count\", count);",
+							"    console.log(pm.environment.get(\"gist_count\"));",
+							"    pm.expect(count).to.be.equal(pm.environment.get(\"gist_count\"));",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create new gist",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"New gist created: response code verified\", function() {",
+							"    pm.expect(pm.response.code).to.equal(201);",
+							"})",
+							"",
+							"pm.test(\"Posted request matches response body\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    let file1 = response.files['hello_world.js'].filename;",
+							"    let file2 = response.files['hello_world_js.txt'].filename;",
+							"    pm.expect(response.description).to.equal(\"My shiny new gist\");",
+							"    pm.expect(response.public).to.equal(true);",
+							"    pm.expect(file1).to.equal('hello_world.js');",
+							"    pm.expect(file2).to.equal('hello_world_js.txt');",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"description\": \"My shiny new gist\",\n    \"public\": true,\n    \"files\": {\n        \"hello_world.js\": {\n            \"content\": \"conosle.log('Hello World');\"\n        },\n        \"hello_world_js.txt\": {\n            \"content\": \"Run `node hello_world.js` to print Hello World\"\n        }\n    }\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://api.github.com/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm gist contents",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"let response = JSON.parse(responseBody);",
+							"pm.test(\"User has one new gist\", function() {",
+							"    let count = response.length;",
+							"",
+							"    // Stores most recently created gist as env variable gist_id",
+							"    for (let i=0; i < count; i++) {",
+							"        pm.environment.set(\"gist_id\", response[i].id);",
+							"        break;",
+							"    }",
+							"    gist_count = pm.environment.get(\"gist_count\") + 1;",
+							"    pm.expect(gist_count).to.be.equal(count);",
+							"    pm.environment.set(\"gist_count\", count);",
+							"})",
+							"",
+							"pm.test(\"Newly created gist contents confirmed\", function() {",
+							"    let file1 = response[0].files['hello_world.js'].filename;",
+							"    let file2 = response[0].files['hello_world_js.txt'].filename;",
+							"    pm.expect(response[0].description).to.equal(\"My shiny new gist\");",
+							"    pm.expect(response[0].public).to.equal(true);",
+							"    pm.expect(file1).to.equal('hello_world.js');",
+							"    pm.expect(file2).to.equal('hello_world_js.txt');",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update gist",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Patched gist response code verified\", function() {",
+							"    pm.expect(pm.response.code).to.equal(200);",
+							"})",
+							"",
+							"pm.test(\"Patched request matches response body\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    pm.expect(response.description).to.be.equal(\"Patched up gist\");",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"description\": \"Patched up gist\"\n}"
+				},
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm updated gist",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Patched gist contents verified\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    pm.expect(response[0].description).to.be.equal(\"Patched up gist\");",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Current gist is unstarred",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Verified that current gist is unstarred\", function() {",
+							"    // Not Found if gist is not starred",
+							"    pm.expect(pm.response.code).to.equal(404);",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}/star",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}",
+						"star"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Star a gist",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Starred gist response code is valid\", function() {",
+							"    pm.expect(pm.response.code).to.equal(204);",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": []
+				},
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}/star",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}",
+						"star"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm starred gist token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Starred gist token verified\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    let starred = response[0].id;",
+							"    pm.expect(starred).to.be.equal(pm.environment.get(\"gist_id\"));",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists/starred",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"starred"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Current gist is starred",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Verified that current gist is starred\", function() {",
+							"    pm.expect(pm.response.code).to.equal(204);",
+							"})",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}/star",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}",
+						"star"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Unstar current gist",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Unstarred gist response code is valid\", function() {",
+							"    pm.expect(pm.response.code).to.equal(204);",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}/star",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}",
+						"star"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Current gist is unstarred",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Verified that current gist is unstarred\", function() {",
+							"    // Not Found if gist is not starred",
+							"    pm.expect(pm.response.code).to.equal(404);",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}/star",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}",
+						"star"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm gist exists",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Current gist id is verified\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    pm.expect(response[0].id).to.be.equal(pm.environment.get(\"gist_id\"));",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete gist",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Deleted gist response code is valid\", function() {",
+							"    pm.expect(pm.response.code).to.equal(204);",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "",
+							"value": "",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "https://api.github.com/gists/{{gist_id}}",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists",
+						"{{gist_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm gist deleted",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Gist id has been deleted\", function() {",
+							"    let response = JSON.parse(responseBody);",
+							"    let length = response.length;",
+							"",
+							"    // Checks all gists for accuracy",
+							"    if (length > 0) {",
+							"        for (let i=0; i < length; i++) {",
+							"            pm.expect(response[i].id).to.not.equal(pm.environment.get(\"gist_id\"));",
+							"        }",
+							"    // Case of an empty response",
+							"    } else {",
+							"        pm.expect(response).to.not.equal(pm.environment.get(\"gist_id\"));",
+							"    }",
+							"})"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.github.com/gists",
+					"protocol": "https",
+					"host": [
+						"api",
+						"github",
+						"com"
+					],
+					"path": [
+						"gists"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
