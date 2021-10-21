@@ -10,12 +10,12 @@ const BOAT = "Boat";
 
 
 /* ------------- Begin Boat Model Functions ------------- */
-function get_boat_id(bid) {
+function get_boat_obj(bid) {
     const key = datastore.key([BOAT, parseInt(bid,10)]);
     return datastore.get(key);
 }
 
-function get_load_id(lid) {
+function get_load_obj(lid) {
     const key = datastore.key([LOAD, parseInt(lid,10)]);
     return datastore.get(key);
 }
@@ -39,9 +39,19 @@ function patch_boat(id, req){
     return datastore.save({"key":key, "data":boat});
 }
 
-function delete_boat(bid){
-    const key = datastore.key([BOAT, parseInt(bid,10)]);
-    return datastore.delete(key);
+function delete_boat(bid, boat){
+    const b_key = datastore.key([BOAT, parseInt(bid,10)]);
+    boat.loads.forEach( item => {
+        get_load_obj(item.id)
+        .then (load => {
+            if (load[0]) {
+                const l_key = datastore.key([LOAD, parseInt(item.id,10)]);
+                load[0].carrier = null;
+                return datastore.save({"key": l_key, "data": load[0]});
+            }
+        })
+    });
+    return datastore.delete(b_key);
 }
 
 function put_load_in_boat(lid, load, bid, boat, req) {
@@ -54,8 +64,22 @@ function put_load_in_boat(lid, load, bid, boat, req) {
     
     load.carrier = carrier;
     boat.loads.push(loads);
-    console.log("Load is: ", load);
-    console.log("Boat is: ", boat);
+
+    return datastore.save({"key": l_key, "data": load})
+    .then( () => {
+        return datastore.save({"key": b_key, "data": boat});
+    })
+}
+
+function delete_load_from_boat(lid, load, bid, boat) {
+    const l_key = datastore.key([LOAD, parseInt(lid,10)]);
+    const b_key = datastore.key([BOAT, parseInt(bid,10)]);
+    const index = boat.loads.map(function (obj) { return obj.id; }).indexOf(lid);
+    load.carrier = null;
+    if (index >= 0) {
+        boat.loads.splice(index, 1);
+    }
+    // console.log("boat load after is: ", boat);
     return datastore.save({"key": l_key, "data": load})
     .then( () => {
         return datastore.save({"key": b_key, "data": boat});
@@ -74,15 +98,6 @@ function get_slip_with_boat(bid) {
         }
         return null;
     });
-}
-
-function delete_slip_boat(sid) {
-    const s_key = datastore.key([LOAD, parseInt(sid, 10)]);
-    return datastore.get(s_key)
-    .then ( slip => {
-        slip[0].current_boat = null;
-        return datastore.save({"key":s_key, "data":slip[0]});
-    })
 }
 
 function build_boat_json(bid, boat, req) {
@@ -110,7 +125,7 @@ router.get('/', function(req, res){
 });
 
 router.get('/:boat_id', function(req, res) {
-    get_boat_id(req.params.boat_id)
+    get_boat_obj(req.params.boat_id)
     .then( (boat) => {
         if (boat[0]) {
             let payload = build_boat_json(req.params.boat_id, boat, req); 
@@ -125,7 +140,7 @@ router.post('/', function(req, res) {
     if (req.body.name && req.body.type && req.body.length) {
         post_boat(req.body.name, req.body.type, req.body.length)
         .then( key => {
-            get_boat_id(key.id)
+            get_boat_obj(key.id)
             .then( boat => {
                 let payload = build_boat_json(key.id, boat, req);
                 res.status(201).json(payload);
@@ -137,19 +152,14 @@ router.post('/', function(req, res) {
 });
 
 router.put('/:boat_id/loads/:load_id', function(req, res){
-    get_load_id(req.params.load_id)
+    get_load_obj(req.params.load_id)
     .then ( load => {
-        if (load[0] === undefined) {
-            res.status(404).json({ Error: "The specified boat and/or load does not exist"});
-            return;
-        }
 
-        get_boat_id(req.params.boat_id)
+        get_boat_obj(req.params.boat_id)
         .then( (boat) => { 
-            if (boat[0] === undefined) {
+            if (boat[0] === undefined || load[0] === undefined) {
                 res.status(404).json({ Error: "The specified boat and/or load does not exist"});
             }
-            
             else if (load[0].carrier) {
                 res.status(403).json({ Error: "This load is already assigned to a boat"});
 
@@ -164,23 +174,34 @@ router.put('/:boat_id/loads/:load_id', function(req, res){
     });
 });
 
+// Remove a load from a boat
+router.delete('/:boat_id/loads/:load_id', function(req, res) {
+    get_load_obj(req.params.load_id)
+    .then ( load => {
+
+        get_boat_obj(req.params.boat_id)
+        .then ( boat => {
+            if (load[0] && boat[0] && load[0].carrier !== null && load[0].carrier.id === req.params.boat_id) {
+                delete_load_from_boat(req.params.load_id, load[0], req.params.boat_id, boat[0])
+                .then( () => {
+                    res.status(204).end();
+                })
+            }
+            else {
+                res.status(404).json({ Error: "No load with this load_id is at the boat with this boat_id"});
+            }
+        })
+    })
+})
+
+// Delete a boat
 router.delete('/:boat_id', function(req, res){
-    get_boat_id(req.params.boat_id)
+    get_boat_obj(req.params.boat_id)
     .then( (boat) => {
-        if (boat[0] === undefined) {
-            res.status(404).send({ Error: "No boat with this boat_id exists" });
+        if (boat[0]) {
+            delete_boat(req.params.boat_id, boat[0]).then(res.status(204).end());
         } else {
-            delete_boat(req.params.boat_id).then(res.status(204).end());
-            // get_slip_with_boat(req.params.boat_id)
-            // .then ( key => {
-            //     if (key) {
-            //         delete_slip_boat(key).then( () => {
-            //             delete_boat(req.params.boat_id).then(res.status(204).end());
-            //         })
-            //     } else {
-            //         delete_boat(req.params.boat_id).then(res.status(204).end());
-            //     }
-            // })
+            res.status(404).send({ Error: "No boat with this boat_id exists" });
         }
     })
 });

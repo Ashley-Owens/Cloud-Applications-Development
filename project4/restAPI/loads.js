@@ -10,18 +10,12 @@ const BOAT = "Boat";
 
 
 /* ------------- Begin Load Model Functions ------------- */
-function verify_slip_data(req) {
-    if (req.body.number) {
-        return true;
-    } return false;
-}
-
-function get_load_id(lid) {
+function get_load_obj(lid) {
     const key = datastore.key([LOAD, parseInt(lid,10)]);
     return datastore.get(key);
 }
 
-function get_boat_id(bid) {
+function get_boat_obj(bid) {
     const key = datastore.key([BOAT, parseInt(bid,10)]);
     return datastore.get(key);
 }
@@ -60,9 +54,20 @@ function get_slip_boats(req, id) {
     });
 }
 
-function delete_load(lid){
-    const key = datastore.key([LOAD, parseInt(lid,10)]);
-    return datastore.delete(key);
+function delete_load(lid, load){
+    const l_key = datastore.key([LOAD, parseInt(lid,10)]);
+    const b_key = datastore.key([BOAT, parseInt(load.carrier.id,10)]);
+    datastore.get(b_key)
+    .then( boat => {
+        if (boat[0]) {
+            let index = boat[0].loads.map(function (obj) { return obj.id; }).indexOf(lid);
+            if (index >= 0) {
+                boat[0].loads.splice(index, 1);
+            }
+            return datastore.save({"key": b_key, "data": boat[0]});
+        }
+    })
+    return datastore.delete(l_key);
 }
 
 function delete_slip_boat(sid) {
@@ -92,7 +97,7 @@ router.get('/', function(req, res){
 });
 
 router.get('/:load_id', function(req, res) {
-    get_load_id(req.params.load_id)
+    get_load_obj(req.params.load_id)
     .then( load => {
         if (load[0]) {
             let payload = build_load_json(req.params.load_id, load, req); 
@@ -107,7 +112,7 @@ router.post('/', function(req, res) {
     if (req.body.volume && req.body.content && req.body.creation_date) {
         post_load(req.body.volume, req.body.content, req.body.creation_date)
         .then( key => {
-            get_load_id(key.id)
+            get_load_obj(key.id)
             .then( load => {
                 let payload = build_load_json(key.id, load, req);
                 res.status(201).json(payload);
@@ -133,12 +138,12 @@ router.get('/:id/boats', function(req, res){
 // });
 
 router.put('/:slip_id/:boat_id', function(req, res){
-    get_boat_id(req.params.boat_id)
+    get_boat_obj(req.params.boat_id)
     .then ( boat => {
         if (boat[0] === undefined) {
             res.status(404).json({ Error: "The specified boat and/or slip does not exist"});
         } else {
-            get_load_id(req.params.slip_id)
+            get_load_obj(req.params.slip_id)
             .then( slip => {
                 if (slip[0] === undefined) {
                     res.status(404).json({ Error: "The specified boat and/or slip does not exist"});
@@ -156,12 +161,12 @@ router.put('/:slip_id/:boat_id', function(req, res){
 });
 
 router.delete('/:slip_id/:boat_id', function (req, res) {
-    get_boat_id(req.params.boat_id)
+    get_boat_obj(req.params.boat_id)
     .then ( boat => {
         if (boat[0] === undefined) {
             res.status(404).json({ Error: "No boat with this boat_id is at the slip with this slip_id" });
         } else {
-            get_load_id(req.params.slip_id)
+            get_load_obj(req.params.slip_id)
             .then ( slip => {
                 if (slip[0] === undefined || slip[0].current_boat !== req.params.boat_id) {
                     res.status(404).json({ Error: "No boat with this boat_id is at the slip with this slip_id" });
@@ -177,10 +182,10 @@ router.delete('/:slip_id/:boat_id', function (req, res) {
 });
 
 router.delete('/:load_id', function(req, res){
-    get_load_id(req.params.load_id)
+    get_load_obj(req.params.load_id)
     .then( load => {
         if (load[0]) {
-            delete_load(req.params.load_id).then(res.status(204).end())
+            delete_load(req.params.load_id, load[0]).then(res.status(204).end())
         } else {
             res.status(404).send({ Error: "No load with this load_id exists" });
         }
