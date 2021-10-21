@@ -65,15 +65,6 @@ function delete_load(lid){
     return datastore.delete(key);
 }
 
-function put_load_in_boat(lid, bid){
-    const l_key = datastore.key([LOAD, parseInt(lid,10)]);
-    return datastore.get(l_key)
-    .then( (slip) => {
-        slip[0].current_boat = bid;
-        return datastore.save({"key":l_key, "data":slip[0]});
-    });
-}
-
 function delete_slip_boat(sid) {
     const s_key = datastore.key([LOAD, parseInt(sid, 10)]);
     return datastore.get(s_key)
