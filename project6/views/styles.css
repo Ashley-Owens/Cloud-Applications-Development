@@ -1,0 +1,27 @@
+/* --------------- Home Page ---------------------- */
+body {
+    background-color: #121212;
+    font-family: "Andale Mono";
+}
+
+h3.card-title {
+    text-transform: uppercase;
+    color: rgba(192, 191, 191, 0.8);
+}
+
+.home-card {
+    background-color: #42454a;
+    color: rgba(255,255,255,.85);
+    padding: 1rem;
+}
+
+#verify {
+    background-color: #accd2d;
+    color: black;
+    padding: .7em;
+}
+
+#verify:hover {
+    background-color: #e7265d;
+    color: white;
+}
