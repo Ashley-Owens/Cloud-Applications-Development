@@ -25,61 +25,53 @@ function createAuthUrl (state) {
     return url;
 }
 
-/* createTokenUrl()
+/* createCodeUrl()
 *  Adds code parameter, building a query string
 *  to request a token from googleapi url.
 *
 *  Parameter: code - a unique random string from googleapi
 *  Returns: url - string 
 */
-function createTokenUrl (code) {
+function createCodeUrl (code) {
     let url = `https://oauth2.googleapis.com/token?code=${code}&client_id=${creds.web.client_id}&client_secret=${creds.web.client_secret}&redirect_uri=${creds.web.redirect_uris[0]}&grant_type=authorization_code`;
-    return url;
-}
-
-/* createGoogleAPIUrl()
-*  Adds the token received to the query string
-*  to request user data from googleapi url.
-*
-*  Parameter: code - a unique random string from googleapi
-*  Returns: url - string 
-*/
-function createGoogleAPIUrl (token) {
-    let url = `https://people.googleapis.com/v1/people/me?personFields=names&access_token=${token}`;
     return url;
 }
 
 /* exchangeForToken()
 *  Using axios, makes a POST request to given
 *  url at oauth2.googleapis.com in order to 
-*  exchange user code for an authorization token.
+*  exchange user code for an authentication token.
 *
 *  Parameter: url - query strings including code
 *  Returns: google API response with user data 
 */
 async function exchangeForToken(url) {
     try {
-      return await axios.post(url);
+        return await axios.post(url);
 
     } catch (error) {
-      console.error(error);
+        console.error(error);
     }
 }
 
 /* getUserProfile()
 *  Using axios, makes a GET request to given
 *  url at people.googleapis.com with user token
-*  included in query string for authentication.
+*  included in the header for authentication.
 *
-*  Parameter: url - query strings including token
+*  Parameter: token - auth token from googleapi
 *  Returns: google API response with user data 
 */
-async function getUserProfile(url) {
+async function getUserProfile(token) {
     try {
-      return await axios.get(url);
+        const url = `https://people.googleapis.com/v1/people/me?personFields=names`;
+        const config = {
+            headers: {'Authorization': 'Bearer ' + token}
+        }
+        return await axios.get(url, config);
 
     } catch (error) {
-      console.error(error);
+        console.error(error);
     }
 }
   
@@ -134,6 +126,14 @@ async function generateState() {
     }
 }
 
+/* get("/oauth")
+*  Contains request query from google authentication endpoint.
+*  Query includes previously sent state and a code. Verifies
+*  state and sends the code embedded in a new url directly to 
+*  googleapi server via POST to request a token for this user.
+*
+*  Returns: redirect to profile endpoint or error !!!!!! #To Do
+*/
 app.get("/oauth", async function (req, res) {
     const state = req.query.state;
     const code = req.query.code;
@@ -141,18 +141,26 @@ app.get("/oauth", async function (req, res) {
     // Checks for matching state in datastore
     if (await stateExistsInDS(state)) {
         // Uses the received code to request a token
-        const url = await createTokenUrl(code);
+        const url = createCodeUrl(code);
         const response = await exchangeForToken(url);
 
         // Uses the received token to request user data
-        const apiURL = createGoogleAPIUrl(response.data.access_token);
-        const user = await getUserProfile(apiURL);
+        const user = await getUserProfile(response.data.access_token);
         console.log(user.data.names);
+        
     } else {
         res.status(500).send({ Error: "Unable to find user state in database" });
     }
 })
 
+/* post("/")
+*  Creates a new state string of 64 random hex values.
+*  Calls helper method to save state in datastore. If
+*  save is successful, generates a url using the random 
+*  state, and redirects user to google auth endpoint.
+*
+*  Returns: redirect to endpoint or error
+*/
 app.post("/", async function (req, res) {
     const state = await generateState();
     const post_key = await postState(state);
