@@ -1,14 +1,18 @@
 const PORT = process.env.PORT || 8080;
 const express = require("express");
-const crypto = require("crypto");
 const app = express();
+const crypto = require("crypto");
 const axios = require('axios').default;
+const exphbs = require('express-handlebars');
+app.engine('hbs', exphbs({ extname: '.hbs' }));
+app.set('view engine', 'hbs');
+
 const creds = require("./credentials.js");
 const ds = require('./datastore');
 const datastore = ds.datastore;
 
 app.set("trust proxy", true);
-app.use(express.static("views"));
+app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
 const STATE = "State";
@@ -21,7 +25,7 @@ const STATE = "State";
 *  Returns: url - string 
 */
 function createAuthUrl (state) {
-    let url = `https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/userinfo.profile&access_type=offline&include_granted_scopes=true&response_type=code&state=${state}&redirect_uri=${creds.web.redirect_uris[0]}&client_id=${creds.web.client_id}`;
+    let url = `https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/userinfo.profile&access_type=offline&include_granted_scopes=true&response_type=code&state=${state}&redirect_uri=${creds.web.redirect_uris[1]}&client_id=${creds.web.client_id}`;
     return url;
 }
 
@@ -33,7 +37,7 @@ function createAuthUrl (state) {
 *  Returns: url - string 
 */
 function createCodeUrl (code) {
-    let url = `https://oauth2.googleapis.com/token?code=${code}&client_id=${creds.web.client_id}&client_secret=${creds.web.client_secret}&redirect_uri=${creds.web.redirect_uris[0]}&grant_type=authorization_code`;
+    let url = `https://oauth2.googleapis.com/token?code=${code}&client_id=${creds.web.client_id}&client_secret=${creds.web.client_secret}&redirect_uri=${creds.web.redirect_uris[1]}&grant_type=authorization_code`;
     return url;
 }
 
@@ -126,32 +130,49 @@ async function generateState() {
     }
 }
 
+/************************* HTTP Requests **************************/
+/* get("/")
+*  Renders the home page using handlebars.
+*/
+app.get("/", function (req, res) {
+    res.render('index');
+})
+
 /* get("/oauth")
 *  Contains request query from google authentication endpoint.
 *  Query includes previously sent state and a code. Verifies
 *  state and sends the code embedded in a new url directly to 
 *  googleapi server via POST to request a token for this user.
 *
-*  Returns: redirect to profile endpoint or error !!!!!! #To Do
+*  Returns: redirect to oauth endpoint or back to home page
 */
 app.get("/oauth", async function (req, res) {
     const state = req.query.state;
     const code = req.query.code;
-
+   
     // Checks for matching state in datastore
     if (await stateExistsInDS(state)) {
         // Uses the received code to request a token
         const url = createCodeUrl(code);
         const response = await exchangeForToken(url);
 
-        // Uses the received token to request user data
-        const user = await getUserProfile(response.data.access_token);
-        console.log(user.data.names);
-        
+        // This handles cases where user refreshes the webpage
+        if (response !== undefined) {
+            // Uses the received token to request user data
+            const user = await getUserProfile(response.data.access_token);
+            const data = {
+                givenName: user.data.names[0].givenName,
+                familyName: user.data.names[0].familyName,
+                state: state
+            }
+            res.render('profile', {data});
+        } else {
+            res.redirect('/');
+        }
     } else {
         res.status(500).send({ Error: "Unable to find user state in database" });
     }
-})
+});
 
 /* post("/")
 *  Creates a new state string of 64 random hex values.
@@ -171,7 +192,6 @@ app.post("/", async function (req, res) {
         res.status(500).send({ Error: "Unable to store state in database" });
     }
 });
-
 
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}...`);

@@ -1,12 +1,18 @@
 /* --------------- Home Page ---------------------- */
-body {
+html, body, section {
     background-color: #121212;
     font-family: "Andale Mono";
 }
 
 h3.card-title {
     text-transform: uppercase;
-    color: rgba(192, 191, 191, 0.8);
+    color: rgba(192, 191, 191, 0.80);
+}
+
+h2.card-title {
+    text-transform: uppercase;
+    color: #accd2d;
+    font-size: 1.75rem;
 }
 
 .home-card {
@@ -24,4 +30,21 @@ h3.card-title {
 #verify:hover {
     background-color: #e7265d;
     color: white;
+}
+
+#displayTable {
+    background-color: #4d5157;
+    padding: 1rem;
+}
+
+th.title {
+    color: rgba(255,255,255,.90);
+}
+
+#tableBody {
+    color: #e7265d;
+}
+
+.table-hover > tbody > tr:hover {
+    color: white !important;
 }
