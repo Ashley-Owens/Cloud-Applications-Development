@@ -1,17 +1,18 @@
 const express = require('express');
 const app = express();
+app.use(express.urlencoded({ extended: true }));
 
 const json2html = require('json-to-html');
-const bodyParser = require('body-parser');
 const request = require('request');
 const jwt = require('express-jwt');
 const jwksRsa = require('jwks-rsa');
 const creds = require("./credentials.js");
+const axios = require('axios').default;
 
 const {Datastore} = require('@google-cloud/datastore');
 const datastore = new Datastore();
 
-const LODGING = "Lodging";
+const BOAT = "Boat";
 
 const router = express.Router();
 const login = express.Router();
@@ -20,7 +21,6 @@ const CLIENT_ID = creds.auth0.client_id;
 const CLIENT_SECRET = creds.auth0.client_secret;
 const DOMAIN = creds.auth0.domain;
 
-app.use(bodyParser.json());
 
 function fromDatastore(item){
     item.id = item[Datastore.KEY].id;
@@ -40,29 +40,35 @@ const checkJwt = jwt({
     algorithms: ['RS256']
   });
 
-/* ------------- Begin Lodging Model Functions ------------- */
-function post_lodging(name, description, price, owner){
-    var key = datastore.key(LODGING);
-	const new_lodging = {"name": name, "description": description, "price": price, "owner":owner};
-	return datastore.save({"key":key, "data":new_lodging}).then(() => {return key});
+/* ------------- Begin Boat Model Functions ------------- */
+function post_boat(name, type, length, public, owner){
+    var key = datastore.key(BOAT);
+	const new_boat = {
+        "name": name, 
+        "type": type, 
+        "length": length, 
+        "public": public, 
+        "owner": owner
+    };
+	return datastore.save({"key":key, "data":new_boat}).then(() => {return key});
 }
 
-function get_lodgings(owner){
-	const q = datastore.createQuery(LODGING);
+function get_boats(owner){
+	const q = datastore.createQuery(BOAT);
 	return datastore.runQuery(q).then( (entities) => {
 			return entities[0].map(fromDatastore).filter( item => item.owner === owner );
 		});
 }
 
-function get_lodgings_unprotected(){
-	const q = datastore.createQuery(LODGING);
+function get_boats_unprotected(){
+	const q = datastore.createQuery(BOAT);
 	return datastore.runQuery(q).then( (entities) => {
 			return entities[0].map(fromDatastore);
 		});
 }
 
-function get_lodging(id, owner){
-    const key = datastore.key([LODGING, parseInt(id,10)]);
+function get_boat(id, owner){
+    const key = datastore.key([BOAT, parseInt(id,10)]);
     return datastore.get(key).then( (data) => {
             return fromDatastore(data[0]);
         }
@@ -76,32 +82,32 @@ function get_lodging(id, owner){
 router.get('/', checkJwt, function(req, res){
     console.log('jwt' + req.user);
     console.log(JSON.stringify(req.user));
-    const lodgings = get_lodgings(req.user.name)
-	.then( (lodgings) => {
-        res.status(200).json(lodgings);
+    const boats = get_boats(req.user.sub)
+	.then( (boats) => {
+        res.status(200).json(boats);
     });
 });
 
 router.get('/unsecure', function(req, res){
-    const lodgings = get_lodgings_unprotected()
-	.then( (lodgings) => {
-        res.status(200).json(lodgings);
+    const boats = get_boats_unprotected()
+	.then( (boats) => {
+        res.status(200).json(boats);
     });
 });
 
-router.get('/:id', checkJwt, function(req, res){
-        console.log('jwt' + req.user);
-    const lodgings = get_lodging(req.params.id)
-	.then( (lodging) => {
+router.get('/:id', checkJwt, function(req, res) {
+    console.log('jwt' + req.user);
+    const boats = get_boat(req.params.id)
+	.then( (boat) => {
         const accepts = req.accepts(['application/json', 'text/html']);
-        if(lodging.owner && lodging.owner !== req.user.name){
+        if(boat.owner && boat.owner !== req.user.sub){
             res.status(403).send('Forbidden');
         } else if(!accepts){
             res.status(406).send('Not Acceptable');
         } else if(accepts === 'application/json'){
-            res.status(200).json(lodging);
+            res.status(200).json(boat);
         } else if(accepts === 'text/html'){
-            res.status(200).send(json2html(lodging).slice(1,-1));
+            res.status(200).send(json2html(boat).slice(1,-1));
         } else { res.status(500).send('Content type got messed up!'); }
     });
 });
@@ -110,7 +116,7 @@ router.post('/', checkJwt, function(req, res){
     if(req.get('content-type') !== 'application/json'){
         res.status(415).send('Server only accepts application/json data.')
     }
-    post_lodging(req.body.name, req.body.description, req.body.price, req.user.name)
+    post_boat(req.body.name, req.body.type, req.body.length, req.body.public, req.user.sub)
     .then( key => {
         res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
         res.status(201).send('{ "id": ' + key.id + ' }')
@@ -142,7 +148,7 @@ login.post('/', function(req, res){
 
 /* ------------- End Controller Functions ------------- */
 
-app.use('/lodgings', router);
+app.use('/boats', router);
 app.use('/login', login);
 
 // Listen to the App Engine-specified port, or 8080 otherwise
