@@ -40,6 +40,15 @@ const checkJwt = jwt({
     algorithms: ['RS256']
   });
 
+// function useJwt(checkJwt, function (err, req, res, next)) {
+//     return [
+//         checkJwt, 
+//         function(err, req, res, next){
+//             res.status(err.status).json(err);
+//         }
+//     ];
+// }
+
 /* ------------- Begin Boat Model Functions ------------- */
 function post_boat(name, type, length, public, owner){
     var key = datastore.key(BOAT);
@@ -79,6 +88,15 @@ function get_boat(id, owner){
 
 /* ------------- Begin Controller Functions ------------- */
 
+router.use(checkJwt);
+router.use(function(err, req, res, next) {
+    if(err.name === 'UnauthorizedError') {
+      res.status(err.status).send({message:err.message});
+      return;
+    }
+    next();
+});
+
 router.get('/', checkJwt, function(req, res){
     console.log('jwt' + req.user);
     console.log(JSON.stringify(req.user));
@@ -112,15 +130,13 @@ router.get('/:id', checkJwt, function(req, res) {
     });
 });
 
-router.post('/', checkJwt, function(req, res){
-    if(req.get('content-type') !== 'application/json'){
-        res.status(415).send('Server only accepts application/json data.')
+router.post('/', async function(req, res) {
+    if (req.get('content-type') !== 'application/json') {
+        res.status(415).send('Server only accepts application/json data.');
+    } else {
+        const key = await post_boat(req.body.name, req.body.type, req.body.length, req.body.public, req.user.sub);
+        res.status(201).send('{ "id": ' + key.id + ' }');
     }
-    post_boat(req.body.name, req.body.type, req.body.length, req.body.public, req.user.sub)
-    .then( key => {
-        res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
-        res.status(201).send('{ "id": ' + key.id + ' }')
-    } );
 });
 
 login.post('/', function(req, res){
