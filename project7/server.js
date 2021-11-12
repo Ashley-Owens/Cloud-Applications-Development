@@ -1,7 +1,5 @@
+// Program imports
 const express = require('express');
-const app = express();
-app.use(express.urlencoded({ extended: true }));
-
 const json2html = require('json-to-html');
 const request = require('request');
 const jwt = require('express-jwt');
@@ -9,24 +7,29 @@ const jwksRsa = require('jwks-rsa');
 const creds = require("./credentials.js");
 const axios = require('axios').default;
 
+// Initializes express middleware
+const app = express();
+
+// Handles POST requests
+app.use(express.urlencoded({extended: true}));
+app.use(express.json())
+
+// Uses Datastore for database 
 const {Datastore} = require('@google-cloud/datastore');
 const datastore = new Datastore();
 
-const BOAT = "Boat";
-
-const router = express.Router();
+// Creates API routes
+const boats = express.Router();
+const owners = express.Router();
 const login = express.Router();
 
+// Program constant declarations
+const BOAT = "Boat";
 const CLIENT_ID = creds.auth0.client_id;
 const CLIENT_SECRET = creds.auth0.client_secret;
 const DOMAIN = creds.auth0.domain;
 
-
-function fromDatastore(item){
-    item.id = item[Datastore.KEY].id;
-    return item;
-}
-
+// Uses middleware to check Jwt token
 const checkJwt = jwt({
     secret: jwksRsa.expressJwtSecret({
       cache: true,
@@ -51,6 +54,13 @@ function useJwt() {
 }
 
 /* ------------- Begin Boat Model Functions ------------- */
+// Sets a ds object id to it's associated key.id
+function fromDatastore(item){
+    item.id = item[Datastore.KEY].id;
+    return item;
+}
+
+// Adds a boat to ds, returns the id
 function post_boat(name, type, length, public, owner){
     var key = datastore.key(BOAT);
 	const new_boat = {
@@ -63,11 +73,24 @@ function post_boat(name, type, length, public, owner){
 	return datastore.save({"key":key, "data":new_boat}).then(() => {return key});
 }
 
-function get_boats(owner){
+// Helper function for parsing a boats array to include all necessary info
+function parse_boats(boats) {
+    result = [];
+    for (let i=0; i < boats.length; i++) {
+        if (boats[i].public) {
+            boats[i] = fromDatastore(boats[i]);
+            delete boats[i][Datastore.KEY];
+            result.push(boats[i]);
+        }
+    }
+    return result;
+}
+
+async function get_boats(owner){
 	const q = datastore.createQuery(BOAT);
-	return datastore.runQuery(q).then( (entities) => {
-			return entities[0].map(fromDatastore).filter( item => item.owner === owner );
-		});
+	const entities = await datastore.runQuery(q);
+    const items = await entities[0].filter( item => item.owner === owner );
+    return items;
 }
 
 function get_boats_unprotected(){
@@ -89,7 +112,7 @@ function get_boat(id, owner){
 
 /* ------------- Begin Controller Functions ------------- */
 
-router.get('/', checkJwt, function(req, res){
+boats.get('/', checkJwt, function(req, res){
     console.log('jwt' + req.user);
     console.log(JSON.stringify(req.user));
     const boats = get_boats(req.user.sub)
@@ -98,14 +121,14 @@ router.get('/', checkJwt, function(req, res){
     });
 });
 
-router.get('/unsecure', function(req, res){
+boats.get('/unsecure', function(req, res){
     const boats = get_boats_unprotected()
 	.then( (boats) => {
         res.status(200).json(boats);
     });
 });
 
-router.get('/:id', checkJwt, function(req, res) {
+boats.get('/:id', checkJwt, function(req, res) {
     console.log('jwt' + req.user);
     const boats = get_boat(req.params.id)
 	.then( (boat) => {
@@ -122,16 +145,37 @@ router.get('/:id', checkJwt, function(req, res) {
     });
 });
 
-router.post('/', useJwt(), async function(req, res) {
-    
+/*  Posts a new boat to ds, returns the id.
+*   If request is not json, returns 415 + error message.
+*/
+boats.post('/', useJwt(), async function(req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(415).send('Server only accepts application/json data.');
-    } 
-    
-    
-    else {
-        const key = await post_boat(req.body.name, req.body.type, req.body.length, req.body.public, req.user.sub);
+    } else {
+        const key = await post_boat(
+            req.body.name, 
+            req.body.type, 
+            req.body.length, 
+            req.body.public, 
+            req.user.sub
+        );
         res.status(201).send('{ "id": ' + key.id + ' }');
+    }
+});
+
+/*  Returns all public boats for the specified owner_id.
+*   If owner doesn't have any boats, returns empty array.
+*   If owner not in db, returns 404 with error message.
+*/
+owners.get('/:owner_id/boats', async function (req, res) {
+    const boats = await get_boats(req.params.owner_id);
+    // Owner exists in the db
+    if (boats.length > 0) {
+        const payload = parse_boats(boats);
+        res.status(200).send(payload);
+
+    } else {
+        res.status(404).send({ error: "No owner with this owner_id exists" });
     }
 });
 
@@ -160,7 +204,8 @@ login.post('/', function(req, res){
 
 /* ------------- End Controller Functions ------------- */
 
-app.use('/boats', router);
+app.use('/boats', boats);
+app.use('/owners', owners);
 app.use('/login', login);
 
 // Listen to the App Engine-specified port, or 8080 otherwise
