@@ -48,7 +48,8 @@ function useJwt() {
     return [
         checkJwt, 
         function(err, req, res, next){
-            res.status(err.status).json(err);
+            // res.status(err.status).json(err);
+            next();
         }
     ];
 }
@@ -111,14 +112,22 @@ function get_boat(id, owner){
 /* ------------- End Model Functions ------------- */
 
 /* ------------- Begin Controller Functions ------------- */
-
-boats.get('/', checkJwt, function(req, res){
-    console.log('jwt' + req.user);
-    console.log(JSON.stringify(req.user));
-    const boats = get_boats(req.user.sub)
-	.then( (boats) => {
-        res.status(200).json(boats);
-    });
+/*  Returns all public boats for the supplied JWT.
+*   If no JWT is provided or an invalid JWT is provided, 
+*   returns all public boats and 200 status code.
+*/
+boats.get('/', useJwt(), function(req, res){
+    try {
+        console.log('jwt: ' + req.user.sub);
+    } catch (err) {
+        console.log(err.message);
+    }
+    
+    // console.log(JSON.stringify(req.user));
+    // const boats = get_boats(req.user.sub)
+	// .then( (boats) => {
+    //     res.status(200).json(boats);
+    // });
 });
 
 boats.get('/unsecure', function(req, res){
@@ -152,14 +161,20 @@ boats.post('/', useJwt(), async function(req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(415).send('Server only accepts application/json data.');
     } else {
-        const key = await post_boat(
-            req.body.name, 
-            req.body.type, 
-            req.body.length, 
-            req.body.public, 
-            req.user.sub
-        );
-        res.status(201).send('{ "id": ' + key.id + ' }');
+        try {
+            if (req.user.sub) {
+                const key = await post_boat(
+                    req.body.name, 
+                    req.body.type, 
+                    req.body.length, 
+                    req.body.public, 
+                    req.user.sub
+                );
+                res.status(201).send('{ "id": ' + key.id + ' }');
+            }
+        } catch (err) {
+            res.status(401).send({ error: "missing or invalid JWT token" });
+        }
     }
 });
 
