@@ -1,11 +1,9 @@
 // Program imports
 const express = require('express');
-const json2html = require('json-to-html');
 const request = require('request');
 const jwt = require('express-jwt');
 const jwksRsa = require('jwks-rsa');
 const creds = require("./credentials.js");
-const axios = require('axios').default;
 
 // Initializes express middleware
 const app = express();
@@ -21,7 +19,6 @@ const datastore = new Datastore();
 // Creates API routes
 const boats = express.Router();
 const owners = express.Router();
-const login = express.Router();
 
 // Program constant declarations
 const BOAT = "Boat";
@@ -100,7 +97,7 @@ async function get_boats(owner){
 }
 
 // Returns all boats in Datastore
-function get_boats_unprotected(){
+function get_boats_unprotected() {
 	const q = datastore.createQuery(BOAT);
 	return datastore.runQuery(q).then( (entities) => {
 			return entities[0].map(fromDatastore);
@@ -137,23 +134,6 @@ boats.get('/', useJwt(), async function(req, res) {
         let payload = parse_boats(boats, true);
         res.status(200).json(payload);
     }
-});
-
-boats.get('/:id', checkJwt, function(req, res) {
-    console.log('jwt' + req.user);
-    const boats = get_boat(req.params.id)
-	.then( (boat) => {
-        const accepts = req.accepts(['application/json', 'text/html']);
-        if(boat.owner && boat.owner !== req.user.sub){
-            res.status(403).send('Forbidden');
-        } else if(!accepts){
-            res.status(406).send('Not Acceptable');
-        } else if(accepts === 'application/json'){
-            res.status(200).json(boat);
-        } else if(accepts === 'text/html'){
-            res.status(200).send(json2html(boat).slice(1,-1));
-        } else { res.status(500).send('Content type got messed up!'); }
-    });
 });
 
 /*  Posts a new boat to ds, returns the id.
@@ -224,34 +204,10 @@ owners.get('/:owner_id/boats', async function (req, res) {
     }
 });
 
-login.post('/', function(req, res){
-    const username = req.body.username;
-    const password = req.body.password;
-    var options = { method: 'POST',
-            url: `https://${DOMAIN}/oauth/token`,
-            headers: { 'content-type': 'application/json' },
-            body:
-             { grant_type: 'password',
-               username: username,
-               password: password,
-               client_id: CLIENT_ID,
-               client_secret: CLIENT_SECRET },
-            json: true };
-    request(options, (error, response, body) => {
-        if (error){
-            res.status(500).send(error);
-        } else {
-            res.send(body);
-        }
-    });
-
-});
-
 /* ------------- End Controller Functions ------------- */
 
 app.use('/boats', boats);
 app.use('/owners', owners);
-app.use('/login', login);
 
 // Listen to the App Engine-specified port, or 8080 otherwise
 const PORT = process.env.PORT || 8080;
