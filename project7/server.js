@@ -16,7 +16,6 @@ app.use(express.json())
 
 // Uses Datastore for database 
 const {Datastore} = require('@google-cloud/datastore');
-const { parse } = require('ipaddr.js');
 const datastore = new Datastore();
 
 // Creates API routes
@@ -108,12 +107,17 @@ function get_boats_unprotected(){
 		});
 }
 
-function get_boat(id, owner){
+// Returns the data associated with given boat id
+async function get_boat(id){
     const key = datastore.key([BOAT, parseInt(id,10)]);
-    return datastore.get(key).then( (data) => {
-            return fromDatastore(data[0]);
-        }
-    );
+    const data = await datastore.get(key);
+    return data[0];
+}
+
+// Deletes the given boat id from Datastore
+async function delete_boat(bid){
+    const b_key = datastore.key([BOAT, parseInt(bid,10)]);
+    return datastore.delete(b_key);
 }
 
 /* ------------- End Model Functions ------------- */
@@ -171,10 +175,38 @@ boats.post('/', useJwt(), async function(req, res) {
                 res.status(201).send('{ "id": ' + key.id + ' }');
             }
         } catch (err) {
-            res.status(401).send({ error: "missing or invalid JWT token" });
+            res.status(401).send({ Error: "missing or invalid JWT token" });
         }
     }
 });
+
+/*  Deletes owner's boat for valid JWT and specified boat_id.
+*   Returns various error codes for invalid boat id, invalid JWT,
+*   or non matching owner id to boat id.
+*/
+boats.delete('/:boat_id', useJwt(), async function(req, res) {
+    // Valid JWT
+    try {
+        if (req.user.sub) {
+            let boat = await get_boat(req.params.boat_id);
+            // Boat doesn't exist
+            if (!boat) {
+                res.status(403).json({ Error: "no boat with this boat_id exists" });
+            }
+            // Deletes the boat
+            else if (boat.owner === req.user.sub) {
+                await delete_boat(req.params.boat_id);
+                res.status(204).end();
+
+            // Someone else owns the boat
+            } else { res.status(403).end(); }
+        }
+
+    // Invalid JWT
+    } catch (err) {
+        res.status(401).end();
+    }
+})
 
 /*  Returns all public boats for the specified owner_id.
 *   If owner doesn't have any boats, returns empty array.
