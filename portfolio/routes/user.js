@@ -21,14 +21,12 @@ const OWNER = "Owner";
 
 /* GET user profile. */
 router.get('/user', secured(), function (req, res, next) {
-//   console.log(req.user);
-  let user = {
-    'title': 'Profile Page',
-    'email': req.user.displayName,
-    'id': req.user.id
-  }
-  console.log(user);
-  res.render('profile', { user });
+    let user = {
+        'name': `${req.user.name.givenName} ${req.user.name.familyName}`,
+        'email': req.user.emails[0].value,
+        'id': req.user.id
+    }
+    res.render('profile', { user });
 });
 
 

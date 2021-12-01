@@ -16,6 +16,7 @@ const authRouter = require('./routes/auth');
 const indexRouter = require('./routes/index');
 const userRouter = require('./routes/user');
 const app = express();
+const datastore = ds.datastore;
 
 app.use('/', require('./routes/index'));
 app.use(express.urlencoded({ extended: true }));
@@ -25,8 +26,6 @@ app.engine('hbs', exphbs({ extname: '.hbs' }));
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
-
-const datastore = ds.datastore;
 dotenv.config();
 
 // Configure Passport to use Auth0
@@ -145,7 +144,7 @@ module.exports = app;
 // app.use(express.urlencoded({extended: true}));
 // app.use(express.json())
 
-// // Uses Datastore for database 
+// Uses Datastore for database 
 // const {Datastore} = require('@google-cloud/datastore');
 // const datastore = new Datastore();
 

@@ -1,6 +1,28 @@
+/* -------- NAV STYLES --------- */
+.navContainer {
+    display: flex;
+    list-style: none;
+    font-size: 1em;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+  
+.nav-li {
+    padding: .75rem;
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+    text-decoration: none;
+    color: #e7265d;
+}
+  
+.nav-li:hover {
+    color: #26A69A;;
+}
+
+
 /* --------------- Home Page ---------------------- */
 html, body, section {
-    background-color: #121212;
+    background-color: #121212 !important;
     font-family: "Andale Mono";
 }
 
@@ -11,7 +33,7 @@ h3.card-title {
 
 h2.card-title {
     text-transform: uppercase;
-    color: #accd2d;
+    color: #26A69A;
     font-size: 1.75rem;
 }
 
@@ -22,7 +44,7 @@ h2.card-title {
 }
 
 #verify {
-    background-color: #accd2d;
+    background-color: #26A69A;
     color: black;
     padding: .7em;
 }
