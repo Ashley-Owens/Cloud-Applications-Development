@@ -2,21 +2,23 @@
     <div class="container text-center">
         <div class="card home-card bg-dark">
             <div class="card-body p-4">
-                <h2 class="p-3 card-title">Passport</h2>
+                <h2 class="p-3 card-title">Profile</h2>
                 <section id="displayTable">
                     <table class="table table-hover">
                         <thead>
                         <tr class="d-flex">
+                            <th class="col-2 title">Name</th>
                             <th class="col-2 title">Email</th>
-                            <th class="col-2 title">Last Name</th>
-                            <th class="col-6 title">State</th>
+                            <th class="col-4 title">ID</th>
+                            <th class="col-4 title">Boats</th>
                         </tr>
                         </thead>
                         <tbody id='tableBody'>
                             <tr class="d-flex">
-                            <td class="col-2">{{data.givenName}}</td>
-                            <td class="col-2">{{data.familyName}}</td>
-                            <td class="col-6">{{data.state}}</td>
+                            <td class="col-2">{{user.name}}</td>
+                            <td class="col-2">{{user.email}}</td>
+                            <td class="col-6">{{user.id}}</td>
+                            <td class="col-6">{{user.boats}}</td>
                             </tr>
                         </tbody>
                     </table>

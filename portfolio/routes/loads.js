@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const ds = require('./datastore');
+const ds = require('../datastore.js');
 const datastore = ds.datastore;
-const creds = require("./credentials.js");
+const creds = require("../credentials.js");
 
 // Handles POST requests
 router.use(express.urlencoded({extended: true}));

@@ -1,9 +1,8 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const router = express.Router();
-router.use(bodyParser.json());
-const ds = require('./datastore');
+const ds = require('../datastore.js');
 const datastore = ds.datastore;
+router.use(express.urlencoded({ extended: true }));
 
 const LOAD = "Load";
 const BOAT = "Boat";
