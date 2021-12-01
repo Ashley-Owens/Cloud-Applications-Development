@@ -7,7 +7,7 @@ const path = require('path');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const dotenv = require('dotenv');
+const dotenv = require('dotenv').config();
 const passport = require('passport');
 const Auth0Strategy = require('passport-auth0');
 const flash = require('connect-flash');
@@ -18,7 +18,7 @@ const userRouter = require('./routes/user');
 const app = express();
 const datastore = ds.datastore;
 
-app.use('/', require('./routes/index'));
+// app.use('/', require('./routes/index'));
 app.use(express.urlencoded({ extended: true }));
 
 // View engine setup
@@ -26,7 +26,6 @@ app.engine('hbs', exphbs({ extname: '.hbs' }));
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
-dotenv.config();
 
 // Configure Passport to use Auth0
 const strategy = new Auth0Strategy(

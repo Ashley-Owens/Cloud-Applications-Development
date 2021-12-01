@@ -1,7 +1,7 @@
 {
   "name": "node_server",
   "version": "1.0.0",
-  "description": "Back-end node server for project 7",
+  "description": "Back-end node server for portfolio project",
   "main": "server.js",
   "dependencies": {
     "@google-cloud/datastore": "^6.2.0",

@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const passport = require('passport');
-const dotenv = require('dotenv');
+const dotenv = require('dotenv').config();
 const querystring = require('querystring');
-dotenv.config();
+const ds = require('../datastore.js');
+const datastore = ds.datastore;
 
 // Constant declarations
 const LOAD = "Load";
@@ -24,18 +25,27 @@ async function get_user_obj(user_id) {
 
 // Sets a ds object id to it's associated key.id
 function fromDatastore(item){
-    item.id = item[Datastore.KEY].id;
+    item.id = item[datastore.KEY].id;
     return item;
 }
 
 // Returns all users in Datastore
-function get_all_users() {
+async function get_all_users() {
 	const q = datastore.createQuery(USER);
 	return datastore.runQuery(q).then( (entities) => {
 		return entities[0].map(fromDatastore);
 	});
 }
 
+function find_user(users, sub) {
+    for (let i=0; i < users.length; i++) {
+        console.log(users[i]);
+        if (users[i].sub === sub) {
+            return true;
+        }
+    }
+    return false;
+}
 
 // Perform the login, afterwards Auth0 will redirect to callback
 router.get('/login', passport.authenticate('auth0', {
@@ -49,16 +59,21 @@ router.get('/callback', function (req, res, next) {
         if (err) { return next(err); }
         if (!user) { return res.redirect('/login'); }
 
-        req.logIn(user, function (err) {
+        req.logIn(user, async function (err) {
             if (err) { return next(err); }
-            console.log(user);
+
+            // Parse user info from AuthO
             const name = `${user.name.givenName} ${user.name.familyName}`;
             const email = user.emails[0].value;
             const sub = user.id;
-            users = get_all_users();
-            console.log(users);
-            // post_user(name, email, sub);
-            // Add user info to Datastore
+            const users = await get_all_users();
+            const found = find_user(users, sub);
+
+            // Add new user to the database
+            if (!found) { 
+                const key = await post_user(name, email, sub);
+            }
+
             const returnTo = req.session.returnTo;
             delete req.session.returnTo;
             res.redirect(returnTo || '/user');
