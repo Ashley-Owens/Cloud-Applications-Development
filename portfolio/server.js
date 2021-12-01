@@ -14,7 +14,7 @@ const flash = require('connect-flash');
 const userInViews = require('./lib/middleware/userInViews');
 const authRouter = require('./routes/auth');
 const indexRouter = require('./routes/index');
-const usersRouter = require('./routes/user');
+const userRouter = require('./routes/user');
 const app = express();
 
 app.use('/', require('./routes/index'));
@@ -96,7 +96,7 @@ app.use(function (req, res, next) {
 app.use(userInViews());
 app.use('/', authRouter);
 app.use('/', indexRouter);
-app.use('/', usersRouter);
+app.use('/', userRouter);
 
 // Catch 404 and forward to error handler
 app.use(function (req, res, next) {

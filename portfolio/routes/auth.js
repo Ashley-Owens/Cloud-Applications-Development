@@ -30,25 +30,30 @@ router.get('/callback', function (req, res, next) {
 });
 
 // Perform session logout and redirect to homepage
-router.get('/logout', (req, res) => {
-  req.logout();
-
-  const returnTo = req.protocol + '://' + req.hostname;
-  const port = req.connection.localPort;
-  if (port !== undefined && port !== 80 && port !== 443) {
-    returnTo += ':' + port;
-  }
-
-  const logoutURL = new url.URL(
-    util.format('https://%s/v2/logout', process.env.AUTH0_DOMAIN)
-  );
-  const searchString = querystring.stringify({
-    client_id: process.env.AUTH0_CLIENT_ID,
-    returnTo: returnTo
-  });
-  logoutURL.search = searchString;
-
-  res.redirect(logoutURL);
+router.get("/logout", (req, res) => {
+    req.logOut();
+  
+    let returnTo = req.protocol + "://" + req.hostname;
+    const port = req.connection.localPort;
+  
+    if (port !== undefined && port !== 80 && port !== 443) {
+      returnTo =
+        process.env.NODE_ENV === "production"
+          ? `${returnTo}/`
+          : `${returnTo}:${port}/`;
+    }
+  
+    const logoutURL = new URL(
+      `https://${process.env.AUTH0_DOMAIN}/v2/logout`
+    );
+  
+    const searchString = querystring.stringify({
+      client_id: process.env.AUTH0_CLIENT_ID,
+      returnTo: returnTo
+    });
+    logoutURL.search = searchString;
+  
+    res.redirect(logoutURL);
 });
 
 module.exports = router;
