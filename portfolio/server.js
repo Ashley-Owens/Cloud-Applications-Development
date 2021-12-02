@@ -14,7 +14,7 @@ const flash = require('connect-flash');
 const userInViews = require('./lib/middleware/userInViews');
 const authRouter = require('./routes/auth');
 const indexRouter = require('./routes/index');
-const userRouter = require('./routes/user');
+const usersRouter = require('./routes/users');
 const app = express();
 const datastore = ds.datastore;
 
@@ -91,14 +91,14 @@ app.use(function (req, res, next) {
 app.use(userInViews());
 app.use('/', authRouter);
 app.use('/', indexRouter);
-app.use('/', userRouter);
+app.use('/', usersRouter);
 
 // Catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  const err = new Error('Not Found');
-  err.status = 404;
-  next(err);
-});
+// app.use(function (req, res, next) {
+//   const err = new Error('Not Found');
+//   err.status = 404;
+//   next(err);
+// });
 
 // Error handlers
 

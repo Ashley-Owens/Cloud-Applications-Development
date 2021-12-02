@@ -51,7 +51,7 @@ function find_user(users, sub) {
 
 
 /* GET user profile. */
-router.get('/user', secured(), async function (req, res, next) {
+router.get('/users/:user_id', secured(), async function (req, res, next) {
     // Parse user info from AuthO
     let name;
     if ((req.user.name.givenName !== undefined) && (req.user.name.familyName !== undefined)) {
@@ -61,7 +61,7 @@ router.get('/user', secured(), async function (req, res, next) {
     }
     const email = req.user.emails[0].value;
     const boats = req.user.boats || [];
-    const sub = req.user.id;
+    const sub = req.params.user_id;
     const jwt = req.user.jwt;
     
     // Check is authorized user is already in the db
@@ -72,7 +72,7 @@ router.get('/user', secured(), async function (req, res, next) {
     if (!found) { 
         const key = await post_user(name, email, sub, boats);
     }
-
+    
     let user = {
         'name': name,
         'email': email,

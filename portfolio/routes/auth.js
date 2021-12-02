@@ -10,7 +10,7 @@ router.get('/login', passport.authenticate('auth0', {
       res.redirect('/');
 });
 
-// Perform the final stage of authentication and redirect to previously requested URL or '/user'
+// Perform the final stage of authentication and redirect to previously requested URL or '/users'
 router.get('/callback', function (req, res, next) {
     passport.authenticate('auth0', function (err, user, info) {
         if (err) { return next(err); }
@@ -20,7 +20,7 @@ router.get('/callback', function (req, res, next) {
             if (err) { return next(err); }
             const returnTo = req.session.returnTo;
             delete req.session.returnTo;
-            res.redirect(returnTo || '/user');
+            res.redirect(returnTo || `/users/${user.id}`);
         });
     }) (req, res, next);
 });
