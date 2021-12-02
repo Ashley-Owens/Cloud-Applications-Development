@@ -1,7 +1,6 @@
 const PORT = process.env.PORT || 8080;
 const express = require('express');
 const exphbs = require('express-handlebars');
-const creds = require("./credentials.js");
 const ds = require('./datastore.js');
 const path = require('path');
 const logger = require('morgan');
@@ -15,6 +14,8 @@ const userInViews = require('./lib/middleware/userInViews');
 const authRouter = require('./routes/auth');
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
+const boatsRouter = require('./routes/boats');
+const loadsRouter = require('./routes/loads');
 const app = express();
 const datastore = ds.datastore;
 
@@ -91,16 +92,18 @@ app.use(function (req, res, next) {
 app.use(userInViews());
 app.use('/', authRouter);
 app.use('/', indexRouter);
-app.use('/', usersRouter);
+app.use('/users', usersRouter);
+app.use('/boats', boatsRouter);
+app.use('/loads', loadsRouter);
 
-// Catch 404 and forward to error handler
-// app.use(function (req, res, next) {
-//   const err = new Error('Not Found');
-//   err.status = 404;
-//   next(err);
-// });
 
 // Error handlers
+// Catch 404 and forward to error handler
+app.use(function (req, res, next) {
+  const err = new Error('Not Found');
+  err.status = 404;
+  next(err);
+});
 
 // Development error handler
 // Will print stacktrace
