@@ -9,8 +9,10 @@
  module.exports = function () {
     return function secured (req, res, next) {
       if (req.user) { return next(); }
+      console.log("originalURL: ", req.originalUrl);
+      console.log("req.session.returnTo: ", req.session.returnTo);
       req.session.returnTo = req.originalUrl;
       res.redirect('/login');
     };
-  };
+};
   

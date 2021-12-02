@@ -37,10 +37,11 @@ const strategy = new Auth0Strategy(
       process.env.AUTH0_CALLBACK_URL || 'http://localhost:8080/callback'
   },
   function (accessToken, refreshToken, extraParams, profile, done) {
-    // accessToken is the token to call Auth0 API (not needed in the most cases)
-    // extraParams.id_token has the JSON Web Token
-    // profile has all the information from the user
-    return done(null, profile);
+      // accessToken is the token to call Auth0 API (not needed in the most cases)
+      // extraParams.id_token has the JSON Web Token
+      // profile has all the information from the user
+      profile.jwt = extraParams.id_token;
+      return done(null, profile);
   }
 );
 
@@ -54,8 +55,6 @@ passport.serializeUser(function (user, done) {
 passport.deserializeUser(function (user, done) {
     done(null, user);
 });
-
-
 
 app.use(logger('dev'));
 app.use(cookieParser());
@@ -76,8 +75,6 @@ if (app.get('env') === 'production') {
 app.use(session(sess));
 app.use(passport.initialize());
 app.use(passport.session());
-
-
 app.use(flash());
 
 // Handle auth failure error messages
@@ -108,23 +105,23 @@ app.use(function (req, res, next) {
 // Development error handler
 // Will print stacktrace
 if (app.get('env') === 'development') {
-  app.use(function (err, req, res, next) {
-    res.status(err.status || 500);
-    res.render('error', {
-      message: err.message,
-      error: err
+    app.use(function (err, req, res, next) {
+        res.status(err.status || 500);
+        res.render('error', {
+            message: err.message,
+            error: err
+        });
     });
-  });
 }
 
 // Production error handler
 // No stacktraces leaked to user
 app.use(function (err, req, res, next) {
-  res.status(err.status || 500);
-  res.render('error', {
-    message: err.message,
-    error: {}
-  });
+    res.status(err.status || 500);
+    res.render('error', {
+        message: err.message,
+        error: {}
+    });
 });
 
 module.exports = app;

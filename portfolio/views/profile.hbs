@@ -1,16 +1,40 @@
 <section class="mt-5">
     <div class="container text-center">
         <div class="card home-card bg-dark">
-            <div class="card-body p-4">
-                <h2 class="p-3 card-title">Profile</h2>
-                <section id="displayTable">
+            <div class="card-body p-5">
+                <h2 class="p-3 card-title">User Profile</h2>
+                <div>
+                    {{#if user.name}}
+                        <h5>Name: {{user.name}}</h5>
+                    {{else}}
+                        <h5>Name: Unknown</h5>
+                    {{/if}}
+                </div>
+                <div>
+                    <h5>Email: {{user.email}}</h5>
+                </div>
+                <div>
+                    <h5>ID: {{user.id}}</h5>
+                </div>
+                <div>
+                    {{#if user.boats}}
+                        <h5>Boats: {{user.boats}}</h5>
+                    {{else}}
+                        <h5>Boats: None</h5>
+                    {{/if}}
+                </div>
+                <div>
+                    <h5>Jwt: {{user.jwt}}</h5>
+                </div>
+
+                {{!-- <section id="displayTable">
                     <table class="table table-hover">
                         <thead>
                         <tr class="d-flex">
                             <th class="col-2 title">Name</th>
                             <th class="col-2 title">Email</th>
-                            <th class="col-4 title">ID</th>
-                            <th class="col-4 title">Boats</th>
+                            <th class="col-5 title">ID</th>
+                            <th class="col-5 title">Boats</th>
                         </tr>
                         </thead>
                         <tbody id='tableBody'>
@@ -22,7 +46,7 @@
                             </tr>
                         </tbody>
                     </table>
-                </section>
+                </section> --}}
             </div>
         </div>
     </div>
