@@ -7,9 +7,10 @@ const datastore = ds.datastore;
 // Constant declarations
 const USER = "User";
 
-function post_user(name, email, sub, boats) {
+// Helper method to add a new user to Datastore
+function post_user(name, email, sub) {
     var key = datastore.key(USER);
-    const new_user = {"name": name, "email": email, "sub": sub, "boats": boats};
+    const new_user = {"name": name, "email": email, "sub": sub, "boats": []};
     return datastore.save({"key":key, "data":new_user}).then(() => {return key});
 }
 
@@ -28,7 +29,7 @@ async function get_all_users() {
 }
 
 // Iterates through array of DS users, returning the user
-// corresponding to the requested sub id
+// corresponding to the requested sub id parameter
 function find_user(users, sub) {
     for (let i=0; i < users.length; i++) {
         if (users[i].sub === sub) {
@@ -49,7 +50,6 @@ router.get('/:user_id', secured(), async function (req, res, next) {
         name = req.user.nickname;
     }
     const email = req.user.emails[0].value;
-    const boats = req.user.boats || [];
     const sub = req.params.user_id;
     const jwt = req.user.jwt;
     
@@ -68,7 +68,7 @@ router.get('/:user_id', secured(), async function (req, res, next) {
 
      // Add new user to the database
     if (!found) { 
-        await post_user(name, email, sub, boats);
+        await post_user(name, email, sub);
         res.status(201).render('profile', { user });
 
     // Return cached user profile if already logged in
