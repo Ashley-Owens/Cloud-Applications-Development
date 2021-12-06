@@ -13,6 +13,8 @@ router.use(express.json())
 
 // Program constant declarations
 const BOAT = "Boat";
+const SLIP = "Slip";
+const USER = "User";
 const DOMAIN = process.env.AUTH0_DOMAIN;
 
 // Uses middleware to check Jwt token
@@ -64,10 +66,10 @@ async function get_all_boats(owner, req) {
 
     // Only includes boats that match the owner id
     const entities = await datastore.runQuery(q);
-    await entities[0].filter( item => item.owner === owner );
+    const items = await entities[0].filter( item => item.owner === owner );
 
     // Adds boat ID, self, and slip self attributes to the collection
-    results.boats = entities[0].map(item => build_boat_json(item[datastore.KEY].id, item, req));
+    results.boats = items.map(item => build_boat_json(item[datastore.KEY].id, item, req));
 
     // Adds next attribute to the collections
     if (entities[1].moreResults !== ds.Datastore.NO_MORE_RESULTS ){
@@ -93,29 +95,38 @@ async function delete_boat(bid){
     return datastore.delete(b_key);
 }
 
-async function delete_carrier_from_load(boat) {
-    boat.loads.forEach( async function (item) {
-        const load = await get_load_obj(item.id);
-        if (load[0]) {
-            let l_key = datastore.key([LOAD, parseInt(item.id,10)]);
-            load[0].carrier = null;
-            return datastore.save({"key": l_key, "data": load[0]});
-        }
-    })
+async function add_boat_to_user(sub, bid) {
+    var q = datastore.createQuery(USER);
+    const entities = await datastore.runQuery(q);
+    const user = await entities[0].filter( item => item.sub === sub );
+    const uid = user[0][datastore.KEY].id;
+    const key = datastore.key([USER, parseInt(uid,10)]);
+    user[0].boats.push({"id": bid});
+    await datastore.save({"key":key, "data":user[0]});
 }
 
-function remove_load_from_boat(lid, load, bid, boat) {
-    const l_key = datastore.key([LOAD, parseInt(lid,10)]);
-    const b_key = datastore.key([BOAT, parseInt(bid,10)]);
-    const index = boat.loads.map(function (obj) { return obj.id; }).indexOf(lid);
-    load.carrier = null;
+async function delete_boat_from_user(sub, bid) {
+    var q = datastore.createQuery(USER);
+    const entities = await datastore.runQuery(q);
+    const user = await entities[0].filter( item => item.sub === sub );
+    const uid = user[0][datastore.KEY].id;
+    const key = datastore.key([USER, parseInt(uid,10)]);
+    const index = user[0].boats.map(function (obj) { return obj.id; }).indexOf(bid);
     if (index >= 0) {
-        boat.loads.splice(index, 1);
+        user[0].boats.splice(index, 1);
     }
-    return datastore.save({"key": l_key, "data": load})
-    .then( () => {
-        return datastore.save({"key": b_key, "data": boat});
-    })
+    await datastore.save({"key":key, "data":user[0]});
+}
+
+async function remove_boat_from_slip(sid, bid) {
+    const s_key = datastore.key([SLIP, parseInt(sid, 10)]);
+    const b_key = datastore.key([BOAT, parseInt(bid,10)]);
+    const slip = await datastore.get(s_key);
+    const boat = await datastore.get(b_key);
+    slip[0].current_boat = null;
+    boat[0].slip = null;
+    await datastore.save({"key":s_key, "data":slip[0]});
+    await datastore.save({"key":b_key, "data":boat[0]});
 }
 
 function build_boat_json(bid, boat, req) {
@@ -167,7 +178,7 @@ router.post('/', useJwt(), async function(req, res) {
     } else {
         try {
             if (req.user.sub) {
-                if (req.body.name && req.body.type && req.body.length && req.body.owner) {
+                if (req.body.name && req.body.type && req.body.length && req.body.owner === req.user.sub) {
                     const key = await post_boat(
                         req.body.name, 
                         req.body.type, 
@@ -175,6 +186,7 @@ router.post('/', useJwt(), async function(req, res) {
                         req.body.owner
                     );
                     let boat = await datastore.get(key);
+                    await add_boat_to_user(req.user.sub, key.id);
                     let payload = build_boat_json(key.id, boat[0], req);
                     res.status(201).json(payload).end();
                 } else {
@@ -195,7 +207,7 @@ router.patch('/:boat_id', useJwt(), async function(req, res) {
         try {
             if (req.user.sub) {
                 let boat = await get_boat_obj(req.params.boat_id);
-                if (boat[0] !== undefined && boat[0].owner === req.user.sub) {
+                if (boat[0] && boat[0].owner === req.user.sub) {
                     let new_boat = {
                         "name": req.body.name || boat[0].name,
                         "type": req.body.type || boat[0].type,
@@ -216,23 +228,37 @@ router.patch('/:boat_id', useJwt(), async function(req, res) {
 });
 
 // Delete a boat
-// router.delete('/:boat_id', async function(req, res){
-//     try {
-//         if (req.user.sub) {
-//             let boat = await get_boat_obj(req.params.boat_id);
-//             if (boat[0] && boat[0].owner === req.user.sub) {
-//                 await delete_carrier_from_load(boat[0]);
-//                 await delete_boat(req.params.boat_id);
-//                 res.status(204).end();
-//             } else {
-//                 res.status(404).send({ Error: "No boat with this boat_id exists for this user" });
-//             }
-//         }
-//     } catch (err) {
-//         res.status(401).send({ Error: "Invalid web token, please log in again" });
-//     }
-// });
+router.delete('/:boat_id', useJwt(), async function(req, res){
+    try {
+        // Check for authentication
+        if (req.user.sub) {
+            let boat = await get_boat_obj(req.params.boat_id);
+            // Check for valid boat that matches owner's sub
+            if (boat[0] && boat[0].owner === req.user.sub) {
 
+                // If boat is in a slip, remove it
+                if (boat[0].slip) {
+                    await remove_boat_from_slip(boat[0].slip.id, req.params.boat_id);
+                }
+                // Delete boat and send response
+                await delete_boat_from_user(req.user.sub, req.params.boat_id);
+                await delete_boat(req.params.boat_id);
+                res.status(204).end();
+            
+            // Boat doesn't exist or doesn't belong to this user
+            } else {
+                res.status(404).send({ Error: "No boat with this boat_id exists for this user" });
+            }
+        }
+    } catch (err) {
+        res.status(401).send({ Error: "Invalid web token, please log in again" });
+    }
+});
+
+// Prevents attempt to delete all objects in collection
+router.delete('/', function(req, res){
+    res.status(405).send({ Error: "Method not allowed" });
+});
 
 /* ------------- End Controller Functions ------------- */
 module.exports = router;

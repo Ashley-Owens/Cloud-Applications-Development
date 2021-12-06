@@ -11,7 +11,6 @@ router.use(express.json())
 // Program constant declarations
 const BOAT = "Boat";
 const SLIP = "Slip";
-const DOMAIN = process.env.AUTH0_DOMAIN;
 
 /* ------------- Begin Slip Model Functions ------------- */
 function get_slip_obj(sid) {
@@ -33,7 +32,7 @@ async function get_all_slips(req){
         q = q.start(req.query.cursor);
     }
 
-    // Adds boat ID and self attributes to the collection
+    // Adds slip ID and self attributes to the collection
     const entities = await datastore.runQuery(q);
     results.slips = entities[0].map(item => build_slip_json(item[datastore.KEY].id, item, req));
 
@@ -174,6 +173,7 @@ router.delete('/:slip_id/:boat_id', async function (req, res) {
 });
 
 router.delete('/:slip_id', async function(req, res){
+    console.log(req.params.slip_id);
     const slip = await get_slip_obj(req.params.slip_id);
 
     // Check for existing slip
@@ -192,6 +192,7 @@ router.delete('/:slip_id', async function(req, res){
     }
 });
 
+// Prevents attempt to delete all objects in collection
 router.delete('/', function(req, res){
     res.status(405).send({ Error: "Method not allowed" });
 });

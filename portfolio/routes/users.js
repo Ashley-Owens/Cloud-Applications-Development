@@ -21,11 +21,20 @@ function fromDatastore(item){
 }
 
 // Returns all users in Datastore
-async function get_all_users() {
-	const q = datastore.createQuery(USER);
-	return datastore.runQuery(q).then( (entities) => {
-		return entities[0].map(fromDatastore);
-	});
+// async function get_all_users() {
+// 	const q = datastore.createQuery(USER);
+// 	return datastore.runQuery(q).then( (entities) => {
+// 		return entities[0].map(fromDatastore);
+// 	});
+// }
+
+async function get_all_users(req) {
+    var q = datastore.createQuery(USER);
+    const entities = await datastore.runQuery(q);
+    
+    // Adds user ID and self attributes to the collection
+    const results = entities[0].map(item => build_user_json(item[datastore.KEY].id, item, req));
+    return results;
 }
 
 // Iterates through array of DS users, returning the user
@@ -37,6 +46,15 @@ function find_user(users, sub) {
         }
     }
     return false;
+}
+
+function build_user_json(uid, user, req) {
+    user.id = uid;
+    user.self = `${req.protocol}://${req.get("host")}/users/${uid}`;
+    if (user.boats.length > 0) {
+        user.boats.map(boat => boat.self = `${req.protocol}://${req.get("host")}/boats/${boat.id}`);
+    }
+    return user;
 }
 
 
@@ -54,7 +72,7 @@ router.get('/:user_id', secured(), async function (req, res, next) {
     const jwt = req.user.jwt;
     
     // Check if authorized user is already in the db
-    const users = await get_all_users();
+    const users = await get_all_users(req);
     const found = find_user(users, sub);
 
     // Fill object with user data to display on front end
@@ -79,7 +97,7 @@ router.get('/:user_id', secured(), async function (req, res, next) {
 
 // Unprotected route, returns all users in the db
 router.get('/', async function (req, res, next) {
-    const users = await get_all_users();
+    const users = await get_all_users(req);
     res.status(200).send(users);
 })
 
