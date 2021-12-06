@@ -1,7 +1,6 @@
 const PORT = process.env.PORT || 8080;
 const express = require('express');
 const exphbs = require('express-handlebars');
-const ds = require('./datastore.js');
 const path = require('path');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser');
@@ -15,12 +14,11 @@ const authRouter = require('./routes/auth');
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const boatsRouter = require('./routes/boats');
-const loadsRouter = require('./routes/loads');
+const slipsRouter = require('./routes/slips');
 const app = express();
-const datastore = ds.datastore;
 
 // app.use('/', require('./routes/index'));
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.urlencoded({ extended: true }));
 
 // View engine setup
 app.engine('hbs', exphbs({ extname: '.hbs' }));
@@ -96,7 +94,7 @@ app.use('/', authRouter);
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/boats', boatsRouter);
-app.use('/loads', loadsRouter);
+app.use('/slips', slipsRouter);
 
 
 // Error handlers
@@ -119,8 +117,8 @@ if (app.get('env') === 'development') {
     });
 }
 
-// // Production error handler
-// // No stacktraces leaked to user
+// Production error handler
+// No stacktraces leaked to user
 app.use(function (err, req, res, next) {
     res.status(err.status || 500);
     res.render('error', {
