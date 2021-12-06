@@ -5,7 +5,6 @@ const ds = require('../datastore.js');
 const dotenv = require('dotenv').config();
 const router = express.Router();
 const datastore = ds.datastore;
-const creds = require("../credentials.js");
 
 // Handles POST requests
 router.use(express.urlencoded({extended: true}));
@@ -14,7 +13,7 @@ router.use(express.json())
 
 // Program constant declarations
 const BOAT = "Boat";
-const DOMAIN = creds.auth0.domain;
+const DOMAIN = process.env.AUTH0_DOMAIN;
 
 // Uses middleware to check Jwt token
 const checkJwt = jwt({
@@ -42,9 +41,8 @@ function useJwt() {
 }
 
 /* ------------- Begin Boat Model Functions ------------- */
-// Sets a ds object id to it's associated key.id
-function fromDatastore(item){
-    item.id = item[Datastore.KEY].id;
+function add_self(item, req) {
+    item.self = `${req.protocol}://${req.get("host")}/boats/${item.id}`;
     return item;
 }
 
@@ -65,23 +63,40 @@ function post_boat(name, type, length, owner) {
     return datastore.save({"key":key, "data":new_boat}).then(() => {return key});
 }
 
-function get_all_boats(req){
-    var q = datastore.createQuery(BOAT).limit(3);
+async function get_all_boats(owner, req) {
+    var q = datastore.createQuery(BOAT).limit(5);
     const results = {};
 
     // Starts the request at the cursor if necessary
     if(Object.keys(req.query).includes("cursor")){
         q = q.start(req.query.cursor);
     }
-	return datastore.runQuery(q).then( (entities) => {
-        results.boats = entities[0].map(ds.fromDatastore);
 
-        // Creates pagination when there are more results to show
-        if(entities[1].moreResults !== ds.Datastore.NO_MORE_RESULTS ){
-            results.next = `${req.protocol}://${req.get("host")}/boats?cursor=${entities[1].endCursor}`;
-        }
-        return results;
-    });
+    // Only includes boats that match the owner id
+    const entities = await datastore.runQuery(q);
+    await entities[0].filter( item => item.owner === owner );
+
+    // Adds boat ID and self attributes to the collection
+    results.boats = entities[0].map(ds.fromDatastore);
+    results.boats = entities[0].map(item => add_self(item, req));
+
+    // Adds next attribute to the collections
+    if (entities[1].moreResults !== ds.Datastore.NO_MORE_RESULTS ){
+        results.next = `${req.protocol}://${req.get("host")}/boats?cursor=${entities[1].endCursor}`;
+    }
+    return results;
+}
+
+async function get_collection_count(owner) {
+    const q = datastore.createQuery(BOAT);
+	const entities = await datastore.runQuery(q);
+    const items = await entities[0].filter( item => item.owner === owner );
+    return items.length;
+}
+
+async function patch_boat(id, boat) {
+    const key = datastore.key([BOAT, parseInt(id,10)]);
+    return datastore.save({"key":key, "data":boat});
 }
 
 async function delete_boat(bid){
@@ -149,38 +164,34 @@ function build_boat_load(bid, boat, req) {
 
 /* ------------- Begin Controller Functions ------------- */
 // List all boats with pagination
-router.get('/', function(req, res){
-    const boats = get_all_boats(req)
-	.then( (boats) => {
-        res.status(200).json(boats);
-    });
+router.get('/', useJwt(), async function(req, res) {
+    try {
+        if (req.user.sub) {
+            const boats = await get_all_boats(req.user.sub, req);
+            boats.count = await get_collection_count(req.user.sub);
+            res.status(200).json(boats);
+        }
+    } catch (err) {
+        res.status(401).send({ Error: "Invalid web token, please log in again" });
+    }
 });
 
-// List all loads for a given boat
-router.get('/:boat_id/loads', function (req, res) {
-    get_boat_obj(req.params.boat_id)
-    .then ( boat => {
-        if (boat[0]) {
-            let loads = build_boat_load(req.params.boat_id, boat[0], req);
-            res.status(200).json(loads);
-        } else {
-            res.status(404).json( { Error: "No boat with this boat_id exists" });
+// Get data for a specific boat for an authenticated user
+router.get('/:boat_id', useJwt(), async function(req, res) {
+    try {
+        if (req.user.sub) {
+            let boat = await get_boat_obj(req.params.boat_id);
+            if (boat[0]) {
+                let payload = build_boat_json(req.params.boat_id, boat, req); 
+                res.status(200).json(payload);
+            } else {
+                res.status(404).send({ Error: "No boat with this boat_id exists" });
+            }
         }
-    })
+    } catch (err) {
+        res.status(401).send({ Error: "Invalid web token, please log in again" });
+    }
 });
-
-// Get data for a specific boat
-router.get('/:boat_id', function(req, res) {
-    get_boat_obj(req.params.boat_id)
-    .then( (boat) => {
-        if (boat[0]) {
-            let payload = build_boat_json(req.params.boat_id, boat, req); 
-            res.status(200).json(payload);
-        } else {
-            res.status(404).send({ Error: "No boat with this boat_id exists" });
-        }
-    }); 
-})
 
 // Create a new boat object
 router.post('/', useJwt(), async function(req, res) {
@@ -201,6 +212,35 @@ router.post('/', useJwt(), async function(req, res) {
                     res.status(201).json(payload).end();
                 } else {
                     res.status(400).send({ Error: "The request object is missing at least one of the required attributes" });
+                }
+            }
+        } catch (err) {
+            res.status(401).send({ Error: "Invalid web token, please log in again" });
+        }
+    }
+});
+
+// Updates 0 or more boat attributes for an authenticated user
+router.patch('/:boat_id', useJwt(), async function(req, res) {
+    if (req.get('content-type') !== 'application/json') {
+        res.status(406).send({ Error: 'Server only accepts application/json data' });
+    } else {
+        try {
+            console.log(req.user.sub);
+            if (req.user.sub) {
+                let boat = await get_boat_obj(req.params.boat_id);
+                if (boat[0] !== undefined && boat[0].owner === req.user.sub) {
+                    let new_boat = {
+                        "name": req.body.name || boat[0].name,
+                        "type": req.body.type || boat[0].type,
+                        "length": req.body.length || boat[0].length,
+                        "owner": req.body.owner  || boat[0].owner,
+                        "slip": req.body.slip || boat[0].slip
+                    }
+                    await patch_boat(req.params.boat_id, new_boat);
+                    res.status(204).end();
+                } else {
+                    res.status(404).send({ Error: "No boat with this boat_id exists for this user" });
                 }
             }
         } catch (err) {
