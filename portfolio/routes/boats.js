@@ -42,18 +42,21 @@ function useJwt() {
 }
 
 /* ------------- Begin Boat Model Functions ------------- */
+// Given a boat id, returns the associated ds boat object
 async function get_boat_obj(bid) {
     const key = datastore.key([BOAT, parseInt(bid,10)]);
     return datastore.get(key);
 }
 
-// Adds a new boat to datastore, returns it's key
+// Creates a new boat object in datastore, returns it's key
 function post_boat(name, type, length, owner) {
     var key = datastore.key(BOAT);
     const new_boat = {"name": name, "type": type, "length": length, "owner": owner, "slip": null};
     return datastore.save({"key":key, "data":new_boat}).then(() => {return key});
 }
 
+// Returns all boats in ds collection with pagination
+// Uses helper method to build JSON object in proper form
 async function get_all_boats(owner, req) {
     var q = datastore.createQuery(BOAT).limit(5);
     const results = {};
@@ -77,6 +80,7 @@ async function get_all_boats(owner, req) {
     return results;
 }
 
+// Counts the number of items in a datastore collection
 async function get_collection_count(owner) {
     const q = datastore.createQuery(BOAT);
 	const entities = await datastore.runQuery(q);
@@ -84,16 +88,19 @@ async function get_collection_count(owner) {
     return items.length;
 }
 
+// Updates object attributes in datastore
 async function patch_boat(id, boat) {
     const key = datastore.key([BOAT, parseInt(id,10)]);
     return datastore.save({"key":key, "data":boat});
 }
 
+// Deletes a boat object from datastore
 async function delete_boat(bid){
     const b_key = datastore.key([BOAT, parseInt(bid,10)]);
     return datastore.delete(b_key);
 }
 
+// Adds a boat to a user, updating user ds object
 async function add_boat_to_user(sub, bid) {
     var q = datastore.createQuery(USER);
     const entities = await datastore.runQuery(q);
@@ -104,6 +111,7 @@ async function add_boat_to_user(sub, bid) {
     await datastore.save({"key":key, "data":user[0]});
 }
 
+// Removes a boat from a user, updating its ds object array
 async function delete_boat_from_user(sub, bid) {
     var q = datastore.createQuery(USER);
     const entities = await datastore.runQuery(q);
@@ -117,6 +125,7 @@ async function delete_boat_from_user(sub, bid) {
     await datastore.save({"key":key, "data":user[0]});
 }
 
+// Removes a boat from a slip, updating slip and boat objects
 async function remove_boat_from_slip(sid, bid) {
     const s_key = datastore.key([SLIP, parseInt(sid, 10)]);
     const b_key = datastore.key([BOAT, parseInt(bid,10)]);
@@ -128,6 +137,7 @@ async function remove_boat_from_slip(sid, bid) {
     await datastore.save({"key":b_key, "data":boat[0]});
 }
 
+// Builds a JSON object to return in the response
 function build_boat_json(bid, boat, req) {
     boat.id = bid;
     boat.self = `${req.protocol}://${req.get("host")}/boats/${bid}`;
@@ -140,7 +150,11 @@ function build_boat_json(bid, boat, req) {
 /* ------------- End Model Functions ------------- */
 
 /* ------------- Begin Controller Functions ------------- */
-// List all boats with pagination
+
+/*  Lists all boats with pagination for authenticated user.
+*   Returns: status 200 and JSON object or status 401 for
+*   unauthenticated user
+*/
 router.get('/', useJwt(), async function(req, res) {
     try {
         if (req.user.sub) {
@@ -153,7 +167,10 @@ router.get('/', useJwt(), async function(req, res) {
     }
 });
 
-// Get data for a specific boat for an authenticated user
+/*  Lists data related to specified boat for authenticated user.
+*   Returns: status 200 and JSON object, status 401 for invalid jwt,
+*   or status 404 for inaccurate boat id.
+*/
 router.get('/:boat_id', useJwt(), async function(req, res) {
     try {
         if (req.user.sub) {
@@ -170,7 +187,10 @@ router.get('/:boat_id', useJwt(), async function(req, res) {
     }
 });
 
-// Create a new boat object
+/*  Creates a new boat object for authenticated user.
+*   Returns: status 201 and JSON object, status 406 for incorrect
+*   content-type, or status 400 for missing boat attributes.
+*/
 router.post('/', useJwt(), async function(req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(406).send({ Error: 'Server only accepts application/json data' });
@@ -198,7 +218,11 @@ router.post('/', useJwt(), async function(req, res) {
     }
 });
 
-// Updates 0 or more boat attributes for an authenticated user
+/*  Updates zero or more boat attributes for an authenticated user.
+*   Returns: status 204 for success, status 406 for incorrect
+*   content-type, or status 404 for invalid boat id, or status
+*   401 for unauthenticated user.
+*/
 router.patch('/:boat_id', useJwt(), async function(req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(406).send({ Error: 'Server only accepts application/json data' });
@@ -226,7 +250,10 @@ router.patch('/:boat_id', useJwt(), async function(req, res) {
     }
 });
 
-// Delete a boat
+/*  Deletes a boat, updating owner and associated slip datastore objects.
+*   Returns: status 204 for success, status 404 for inaccurate boat id,
+*   or status 401 for unauthenticated user.
+*/
 router.delete('/:boat_id', useJwt(), async function(req, res){
     try {
         // Check for authentication
@@ -254,7 +281,9 @@ router.delete('/:boat_id', useJwt(), async function(req, res){
     }
 });
 
-// Prevents attempt to delete all objects in collection
+/*  Prevents attempt to delete all objects in slip collection.
+*   Returns: status 405 to disallow method
+*/
 router.delete('/', function(req, res){
     res.status(405).send({ Error: "Method not allowed" });
 });

@@ -25,7 +25,7 @@ function get_boat_obj(bid) {
 }
 
 // Returns all slips in ds collection with pagination
-// Uses helper method to return JSON object in proper form
+// Uses helper method to build JSON object in proper form
 async function get_all_slips(req){
     var q = datastore.createQuery(SLIP).limit(5);
     const results = {};
@@ -95,7 +95,7 @@ function delete_slip(sid){
     return datastore.delete(key);
 }
 
-// Builds a JSON object to return to the user
+// Builds a JSON object to return in the response
 function build_slip_json(sid, slip, req) {
     slip.id = sid;
     slip.self = `${req.protocol}://${req.get("host")}/slips/${sid}`;
@@ -133,8 +133,8 @@ router.get('/:slip_id', async function(req, res) {
 })
 
 /*  Creates a new slip object.
-*   Returns: status 201 and JSON object or
-*   status 400 for missing slip attributes.
+*   Returns: status 201 and JSON object, status 406 for 
+*   incorrect content-type, or status 404 for missing attributes.
 */
 router.post('/', async function(req, res) {
     if (req.get('content-type') !== 'application/json') {
