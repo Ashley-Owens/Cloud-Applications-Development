@@ -23,6 +23,11 @@ app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
+
+/* Login code modified from: 
+*  https://auth0.com/docs/quickstart/webapp/nodejs/01-login 
+*/
+
 // Configure Passport to use Auth0
 const strategy = new Auth0Strategy(
   {
