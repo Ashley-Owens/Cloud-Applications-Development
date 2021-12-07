@@ -17,9 +17,6 @@ const boatsRouter = require('./routes/boats');
 const slipsRouter = require('./routes/slips');
 const app = express();
 
-// app.use('/', require('./routes/index'));
-// app.use(express.urlencoded({ extended: true }));
-
 // View engine setup
 app.engine('hbs', exphbs({ extname: '.hbs' }));
 app.set('view engine', 'hbs');
@@ -76,19 +73,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
 
-// Handle auth failure error messages
-app.use(function (req, res, next) {
-  if (req && req.query && req.query.error) {
-      console.log(req);
-      req.flash('error', req.query.error);
-  }
-  if (req && req.query && req.query.error_description) {
-
-    req.flash('error_description', req.query.error_description);
-  }
-  next();
-});
-
+// Routers
 app.use(userInViews());
 app.use('/', authRouter);
 app.use('/', indexRouter);
@@ -97,16 +82,28 @@ app.use('/boats', boatsRouter);
 app.use('/slips', slipsRouter);
 
 
-// Error handlers
-// Catch 404 and forward to error handler
+/* ------------- Error Handling ------------- */
+// Handles auth failure error messages
+app.use(function (req, res, next) {
+    if (req && req.query && req.query.error) {
+        console.log(req);
+        req.flash('error', req.query.error);
+    }
+    if (req && req.query && req.query.error_description) {
+  
+      req.flash('error_description', req.query.error_description);
+    }
+    next();
+});
+
+// Error handlers: catches 404 and forward to error handler
 app.use(function (req, res, next) {
   const err = new Error('Not Found');
   err.status = 404;
   next(err);
 });
 
-// Development error handler
-// Will print stacktrace
+// Development error handler: prints stacktrace
 if (app.get('env') === 'development') {
     app.use(function (err, req, res, next) {
         res.status(err.status || 500);
@@ -117,8 +114,7 @@ if (app.get('env') === 'development') {
     });
 }
 
-// Production error handler
-// No stacktraces leaked to user
+// Production error handler: stacktraces not leaked to user
 app.use(function (err, req, res, next) {
     res.status(err.status || 500);
     res.render('error', {
@@ -126,7 +122,7 @@ app.use(function (err, req, res, next) {
         error: {}
     });
 });
-
+/* ------------- End Error Handling ------------- */
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}...`);
