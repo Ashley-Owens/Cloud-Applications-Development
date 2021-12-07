@@ -7,27 +7,17 @@ const datastore = ds.datastore;
 // Constant declarations
 const USER = "User";
 
-// Helper method to add a new user to Datastore
+/* ------------- Begin User Model Functions ------------- */
+
+// Creates a new user object in datastore
 function post_user(name, email, sub) {
     var key = datastore.key(USER);
     const new_user = {"name": name, "email": email, "sub": sub, "boats": []};
     return datastore.save({"key":key, "data":new_user}).then(() => {return key});
 }
 
-// Sets a ds object id to it's associated key.id
-function fromDatastore(item){
-    item.id = item[datastore.KEY].id;
-    return item;
-}
-
-// Returns all users in Datastore
-// async function get_all_users() {
-// 	const q = datastore.createQuery(USER);
-// 	return datastore.runQuery(q).then( (entities) => {
-// 		return entities[0].map(fromDatastore);
-// 	});
-// }
-
+// Returns all users in ds collection
+// Uses helper method to build JSON object in proper form
 async function get_all_users(req) {
     var q = datastore.createQuery(USER);
     const entities = await datastore.runQuery(q);
@@ -48,6 +38,7 @@ function find_user(users, sub) {
     return false;
 }
 
+// Builds a JSON object to return in the response
 function build_user_json(uid, user, req) {
     user.id = uid;
     user.self = `${req.protocol}://${req.get("host")}/users/${uid}`;
@@ -57,6 +48,9 @@ function build_user_json(uid, user, req) {
     return user;
 }
 
+/* ------------- End Model Functions ------------- */
+
+/* ------------- Begin Controller Functions ------------- */
 
 /* GET user profile from Auth0 or google-oauth2 */
 router.get('/:user_id', secured(), async function (req, res, next) {
@@ -82,9 +76,9 @@ router.get('/:user_id', secured(), async function (req, res, next) {
         'sub': sub,
         'self': `${req.protocol}://${req.get("host")}/users/${sub}`,
         'jwt': jwt
-    }
+    };
 
-     // Add new user to the database
+    // Add new user to the database
     if (!found) { 
         await post_user(name, email, sub);
         res.status(201).render('profile', { user });
@@ -95,7 +89,7 @@ router.get('/:user_id', secured(), async function (req, res, next) {
     }
 });
 
-// Unprotected route, returns all users in the db
+/* Unprotected route, returns all users in the db */
 router.get('/', async function (req, res, next) {
     const users = await get_all_users(req);
     res.status(200).send(users);
