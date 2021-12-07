@@ -53,20 +53,3 @@ h2.card-title {
     background-color: #e7265d;
     color: white;
 }
-
-#displayTable {
-    background-color: #4d5157;
-    padding: 1rem;
-}
-
-th.title {
-    color: rgba(255,255,255,.90);
-}
-
-#tableBody {
-    color: #e7265d;
-}
-
-.table-hover > tbody > tr:hover {
-    color: white !important;
-}

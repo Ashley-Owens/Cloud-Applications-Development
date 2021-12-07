@@ -1,28 +1,31 @@
 const express = require('express');
 const ds = require('../datastore.js');
-const dotenv = require('dotenv').config();
 const router = express.Router();
 const datastore = ds.datastore;
 
 // Handles POST requests
 router.use(express.urlencoded({extended: true}));
-router.use(express.json())
+router.use(express.json());
 
-// Program constant declarations
+// Constant declarations
 const BOAT = "Boat";
 const SLIP = "Slip";
 
 /* ------------- Begin Slip Model Functions ------------- */
+// Given a slip id, returns the associated ds slip object
 function get_slip_obj(sid) {
     const key = datastore.key([SLIP, parseInt(sid,10)]);
     return datastore.get(key);
 }
 
+// Given a boat id, returns the associated ds boat object
 function get_boat_obj(bid) {
     const key = datastore.key([BOAT, parseInt(bid,10)]);
     return datastore.get(key);
 }
 
+// Returns all slips in ds collection with pagination
+// Uses helper method to return JSON object in proper form
 async function get_all_slips(req){
     var q = datastore.createQuery(SLIP).limit(5);
     const results = {};
@@ -43,12 +46,14 @@ async function get_all_slips(req){
     return results;
 }
 
+// Counts the number of items in a datastore collection
 async function get_collection_count() {
     const q = datastore.createQuery(SLIP);
 	const entities = await datastore.runQuery(q);
     return entities[0].length;
 }
 
+// Creates a new slip object in datastore
 function post_slip(number, fee, location) {
     var key = datastore.key(SLIP);
 	const new_slip = {
@@ -60,6 +65,7 @@ function post_slip(number, fee, location) {
 	return datastore.save({"key":key, "data":new_slip}).then(() => {return key});
 }
 
+// Adds a boat to a slip, updating slip and boat objects
 async function put_boat_in_slip(sid, bid){
     const s_key = datastore.key([SLIP, parseInt(sid,10)]);
     const b_key = datastore.key([BOAT, parseInt(bid,10)]);
@@ -71,6 +77,7 @@ async function put_boat_in_slip(sid, bid){
     await datastore.save({"key":b_key, "data":boat[0]});
 }
 
+// Removes a boat from a slip, updating slip and boat objects
 async function remove_boat_from_slip(sid, bid) {
     const s_key = datastore.key([SLIP, parseInt(sid, 10)]);
     const b_key = datastore.key([BOAT, parseInt(bid,10)]);
@@ -82,11 +89,13 @@ async function remove_boat_from_slip(sid, bid) {
     await datastore.save({"key":b_key, "data":boat[0]});
 }
 
+// Deletes a slip from datastore
 function delete_slip(sid){
     const key = datastore.key([SLIP, parseInt(sid,10)]);
     return datastore.delete(key);
 }
 
+// Builds a JSON object to return to the user
 function build_slip_json(sid, slip, req) {
     slip.id = sid;
     slip.self = `${req.protocol}://${req.get("host")}/slips/${sid}`;
@@ -99,7 +108,9 @@ function build_slip_json(sid, slip, req) {
 
 /* ------------- Begin Controller Functions ------------- */
 
-// List all slips with pagination
+/*  Lists all slips with pagination.
+*   Returns: status 200 and JSON object
+*/
 router.get('/', async function(req, res) {
     const slips = await get_all_slips(req);
     slips.count = await get_collection_count();
@@ -107,7 +118,10 @@ router.get('/', async function(req, res) {
     
 });
 
-// Get data for a specific slip
+/*  Lists data related to specified slip.
+*   Returns: status 200 and JSON object or
+*   status 404 for inaccurate slip id.
+*/
 router.get('/:slip_id', async function(req, res) {
     const slip = await get_slip_obj(req.params.slip_id);
     if (slip[0]) {
@@ -118,7 +132,10 @@ router.get('/:slip_id', async function(req, res) {
     }
 })
 
-// Create a new slip object
+/*  Creates a new slip object.
+*   Returns: status 201 and JSON object or
+*   status 400 for missing slip attributes.
+*/
 router.post('/', async function(req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(406).send({ Error: 'Server only accepts application/json data' });
@@ -135,6 +152,10 @@ router.post('/', async function(req, res) {
     }
 });
 
+/*  Puts a boat in a slip, updating both datastore objects.
+*   Returns: status 204 for success, status 403 for non-empty
+*   slip, or 404 for inaccurate boat/slip ids.
+*/
 router.put('/:slip_id/:boat_id', async function(req, res){
     const boat = await get_boat_obj(req.params.boat_id);
     const slip = await get_slip_obj(req.params.slip_id);
@@ -154,6 +175,9 @@ router.put('/:slip_id/:boat_id', async function(req, res){
     }
 });
 
+/*  Removes a boat from a slip, updating both datastore objects.
+*   Returns: status 204 for success, or status 404 for inaccurate boat/slip ids.
+*/
 router.delete('/:slip_id/:boat_id', async function (req, res) {
     const boat = await get_boat_obj(req.params.boat_id);
     const slip = await get_slip_obj(req.params.slip_id);
@@ -172,8 +196,10 @@ router.delete('/:slip_id/:boat_id', async function (req, res) {
     }
 });
 
+/*  Deletes a slip, updating slip and associate boat datastore objects.
+*   Returns: status 204 for success, or status 404 for inaccurate slip id.
+*/
 router.delete('/:slip_id', async function(req, res){
-    console.log(req.params.slip_id);
     const slip = await get_slip_obj(req.params.slip_id);
 
     // Check for existing slip
@@ -192,7 +218,9 @@ router.delete('/:slip_id', async function(req, res){
     }
 });
 
-// Prevents attempt to delete all objects in collection
+/*  Prevents attempt to delete all objects in slip collection.
+*   Returns: status 405 to disallow method
+*/
 router.delete('/', function(req, res){
     res.status(405).send({ Error: "Method not allowed" });
 });

@@ -5,47 +5,16 @@
                 <h2 class="p-3 card-title">User Profile</h2>
                 <div>
                     {{#if user.name}}
-                        <h5>Name: {{user.name}}</h5>
+                        <p>Name: {{user.name}}</p>
                     {{else}}
-                        <h5>Name: Unknown</h5>
+                        <p>Name: Unknown</p>
                     {{/if}}
                 </div>
                 <div>
-                    <h5>Email: {{user.email}}</h5>
-                    <h5>Sub: {{user.sub}}</h5>
-                    <h5>Self: {{user.self}}</h5>
+                    <p>Email: {{user.email}}</p>
+                    <p>Sub: {{user.sub}}</p>
+                    <p>Jwt: {{user.jwt}}</p>
                 </div>
-                <div>
-                    {{#if user.boats}}
-                        <h5>Boats: {{user.boats}}</h5>
-                    {{else}}
-                        <h5>Boats: None</h5>
-                    {{/if}}
-                </div>
-                <div>
-                    <h5>Jwt: {{user.jwt}}</h5>
-                </div>
-
-                {{!-- <section id="displayTable">
-                    <table class="table table-hover">
-                        <thead>
-                        <tr class="d-flex">
-                            <th class="col-2 title">Name</th>
-                            <th class="col-2 title">Email</th>
-                            <th class="col-5 title">ID</th>
-                            <th class="col-5 title">Boats</th>
-                        </tr>
-                        </thead>
-                        <tbody id='tableBody'>
-                            <tr class="d-flex">
-                            <td class="col-2">{{user.name}}</td>
-                            <td class="col-2">{{user.email}}</td>
-                            <td class="col-6">{{user.id}}</td>
-                            <td class="col-6">{{user.boats}}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </section> --}}
             </div>
         </div>
     </div>

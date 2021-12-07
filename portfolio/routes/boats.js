@@ -10,8 +10,7 @@ const datastore = ds.datastore;
 router.use(express.urlencoded({extended: true}));
 router.use(express.json())
 
-
-// Program constant declarations
+// Constant declarations
 const BOAT = "Boat";
 const SLIP = "Slip";
 const USER = "User";
@@ -178,7 +177,7 @@ router.post('/', useJwt(), async function(req, res) {
     } else {
         try {
             if (req.user.sub) {
-                if (req.body.name && req.body.type && req.body.length && req.body.owner === req.user.sub) {
+                if (req.body.name && req.body.type && req.body.length && (req.body.owner === req.user.sub)) {
                     const key = await post_boat(
                         req.body.name, 
                         req.body.type, 
