@@ -4,13 +4,17 @@ const dotenv = require('dotenv').config();
 const querystring = require('querystring');
 
 
-// Perform the login, afterwards Auth0 will redirect to callback
+/*  Performs the login process. When successful, 
+*   Auth0 redirects to callback URL.
+*/
 router.get('/login', passport.authenticate('auth0', {
   scope: 'openid email profile'}), function (req, res) {
       res.redirect('/');
 });
 
-// Perform the final stage of authentication and redirect to previously requested URL or '/users'
+/*  Performs final stage of authentication and redirects
+*   to user requested URL.
+*/
 router.get('/callback', function (req, res, next) {
     passport.authenticate('auth0', function (err, user, info) {
         if (err) { return next(err); }
@@ -25,7 +29,8 @@ router.get('/callback', function (req, res, next) {
     }) (req, res, next);
 });
 
-// Perform session logout and redirect to homepage
+
+/*  Performs session logout, redirecting to homepage */
 router.get("/logout", (req, res) => {
     req.logOut();
     let returnTo = req.protocol + "://" + req.hostname;
